@@ -62,7 +62,7 @@
 
 body {
   color: var(--foreground);
-  font-family: var(--font-poppins), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-fredoka), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .tile-bg {

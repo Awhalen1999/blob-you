@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google";
+import { Fredoka } from "next/font/google";
 import { Providers } from "@/components/providers/Providers";
 import "./globals.css";
 
-const poppins = Poppins({
+const fredoka = Fredoka({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-poppins",
+  weight: ["300", "400", "500", "600"],
+  variable: "--font-fredoka",
   display: "swap",
 });
 
@@ -21,8 +21,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${poppins.variable} tile-bg`}>
+      <html lang="en" className={fredoka.variable}>
+      <body className="tile-bg">
         <Providers>
           {children}
         </Providers>
