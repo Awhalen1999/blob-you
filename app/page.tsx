@@ -19,21 +19,30 @@ export default function Home() {
   const displayName = user.displayName || user.email?.split('@')[0] || 'Player';
 
   return (
-    <div className="w-full max-w-lg mx-auto px-6">
-      <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-        <h1 className="text-5xl font-bold mb-2">blob.you</h1>
-        <p className="text-gray-600 mb-12">Welcome, {displayName}!</p>
-        
-        <div className="space-y-3 mb-8">
-          <button className="btn-menu w-full">Generate Match Code</button>
-          <button className="btn-menu w-full">Enter Match Code</button>
-          <button className="btn-menu w-full">Fight NPC</button>
-        </div>
+    <div className="transparent-bg w-full max-w-md mx-auto p-lg rounded-sm border border-white/20">
+      <header className="mb-md text-center">
+        <h1 className="text-3xl font-bold text-white">blob.you</h1>
+        <p className="text-sm opacity-80">Welcome, {displayName}!</p>
+      </header>
 
-        <button onClick={() => auth.signOut()} className="btn-secondary w-full">
-          Sign Out
+      <div className="flex flex-col gap-sm mb-lg">
+        <button className="w-full p-sm bg-gray-800 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors">
+          Generate Match Code
+        </button>
+        <button className="w-full p-sm bg-gray-800 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors">
+          Enter Match Code
+        </button>
+        <button className="w-full p-sm bg-gray-800 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors">
+          Fight NPC
         </button>
       </div>
+
+      <button
+        onClick={() => auth.signOut()}
+        className="w-full p-sm bg-transparent text-white/70 border border-white/30 rounded-md text-sm font-medium hover:bg-white/10 hover:text-white transition-colors"
+      >
+        Sign Out
+      </button>
     </div>
   );
 }
