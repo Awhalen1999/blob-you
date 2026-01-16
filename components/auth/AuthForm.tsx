@@ -144,7 +144,7 @@ export default function AuthForm() {
       {/* divider */}
       <div className="flex items-center gap-sm mb-md">
         <div className="flex-1 border-t border-white/20" />
-        <span className="text-xs opacity-60">or continue with email</span>
+        <span className="text-xs opacity-80">or continue with email</span>
         <div className="flex-1 border-t border-white/20" />
       </div>
 
@@ -184,7 +184,7 @@ export default function AuthForm() {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-gray-700 px-1"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-700 hover:text-gray-800 px-1"
             >
               {showPassword ? 'Hide' : 'Show'}
             </button>
