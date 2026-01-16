@@ -23,6 +23,7 @@ export default function DrawingCanvas() {
     drawingTimeLeft,
     setDrawingTimeLeft,
     gameMode,
+    reset,
   } = useGameStore();
 
   // Sync liveInk with store when not drawing
@@ -193,6 +194,12 @@ export default function DrawingCanvas() {
     }
   };
 
+  // Back button - exit battle/drawing session
+  const handleBack = () => {
+    console.log('battle ended');
+    reset();
+  };
+
   // Status flags
   const timerLow = drawingTimeLeft <= 10;
   const timerCritical = drawingTimeLeft <= 5;
@@ -200,8 +207,17 @@ export default function DrawingCanvas() {
   const inkCritical = liveInk <= 15;
 
   return (
-    <div className="flex flex-col items-center gap-md">
-      {/* Timer - Nintendo style */}
+    <div className="relative w-full h-full min-h-screen">
+      {/* Back button - top left */}
+      <button
+        onClick={handleBack}
+        className="absolute top-4 left-4 z-10 px-4 py-2 bg-black/60 text-white border-2 border-white/30 rounded-md text-sm font-bold hover:bg-black/80 hover:border-white/50 transition-all"
+      >
+        ← Back
+      </button>
+
+      <div className="flex flex-col items-center justify-center gap-md h-full">
+        {/* Timer - Nintendo style */}
       <div
         className={`
           px-4 py-2 rounded-md border-2 font-bold text-2xl font-mono
@@ -292,6 +308,7 @@ export default function DrawingCanvas() {
       >
         {isReady ? 'READY!' : 'Ready'}
       </button>
+      </div>
     </div>
   );
 }
