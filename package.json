@@ -9,12 +9,17 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "firebase": "^12.8.0",
+    "matter-js": "^0.20.0",
     "next": "16.1.2",
+    "partykit": "^0.0.115",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "zustand": "^5.0.10"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/matter-js": "^0.20.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
