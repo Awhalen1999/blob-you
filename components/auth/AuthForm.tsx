@@ -9,7 +9,6 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword
 } from 'firebase/auth';
-import { useGameStore } from '@/store/gameStore';
 
 export default function AuthForm() {
   const [email, setEmail] = useState('');
@@ -18,17 +17,11 @@ export default function AuthForm() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const setUser = useGameStore((state) => state.setUser);
 
   const handleGoogleSignIn = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      setUser({
-        id: result.user.uid,
-        username: result.user.displayName || 'Player',
-        avatar: result.user.photoURL || '',
-      });
+      await signInWithPopup(auth, provider);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     }
@@ -37,12 +30,7 @@ export default function AuthForm() {
   const handleGithubSignIn = async () => {
     try {
       const provider = new GithubAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      setUser({
-        id: result.user.uid,
-        username: result.user.displayName || 'Player',
-        avatar: result.user.photoURL || '',
-      });
+      await signInWithPopup(auth, provider);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     }
@@ -58,15 +46,11 @@ export default function AuthForm() {
     }
     
     try {
-      const result = isSignUp 
-        ? await createUserWithEmailAndPassword(auth, email, password)
-        : await signInWithEmailAndPassword(auth, email, password);
-      
-      setUser({
-        id: result.user.uid,
-        username: result.user.email?.split('@')[0] || 'Player',
-        avatar: '',
-      });
+      if (isSignUp) {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     }

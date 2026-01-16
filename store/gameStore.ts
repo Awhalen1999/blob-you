@@ -3,10 +3,6 @@ import { create } from 'zustand';
 import type { GamePhase, User, Stroke, BlobStats, GameMode, NPCDifficulty } from '@/types/game';
 
 type GameStore = {
-  // Auth
-  user: User | null;
-  setUser: (user: User | null) => void;
-
   // Game phase
   phase: GamePhase;
   setPhase: (phase: GamePhase) => void;
@@ -56,10 +52,6 @@ const INITIAL_INK = 100;
 const DRAWING_TIME = 30;
 
 export const useGameStore = create<GameStore>((set) => ({
-  // Auth
-  user: null,
-  setUser: (user) => set({ user }),
-
   // Game phase
   phase: 'menu',
   setPhase: (phase) => set({ phase }),
