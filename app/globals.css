@@ -1,8 +1,49 @@
 @import "tailwindcss";
 
+
+/* 
+*SPACING SYSTEM 
+*/
+
+/* 
+  CONVENTION: Power-of-2 based spacing (4px grid)
+  - xs: 4px   (0.25rem)  - Tight, compact
+  - sm: 8px   (0.5rem)   - Small gaps
+  - md: 12px  (0.75rem)  - Default spacing
+  - lg: 16px  (1rem)     - Standard unit
+  - xl: 24px  (1.5rem)   - Section spacing
+  - 2xl: 32px (2rem)     - Major sections
+  - 3xl: 48px (3rem)     - Page sections
+
+  USAGE:
+  - Buttons/Inputs: md (12px) padding
+  - Form fields: md (12px) gap
+  - Sections: lg (16px) or xl (24px) margin
+  - Containers: xl (24px) or 2xl (32px) padding
+*/
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  
+  /* Spacing Scale */
+  --space-xs: 0.25rem;   /* 4px - Tight */
+  --space-sm: 0.5rem;    /* 8px - Small */
+  --space-md: 0.75rem;   /* 12px - Default */
+  --space-lg: 1rem;      /* 16px - Standard */
+  --space-xl: 1.5rem;     /* 24px - Section */
+  --space-2xl: 2rem;      /* 32px - Major */
+  --space-3xl: 3rem;      /* 48px - Page */
+  
+  /* Border Radius */
+  --radius-sm: 0.25rem;  /* 4px */
+  --radius-md: 0.5rem;   /* 8px - Default */
+  --radius-lg: 0.75rem;  /* 12px */
+  
+  /* Border Width */
+  --border-sm: 1px;
+  --border-md: 2px;      /* Default */
+  --border-lg: 3px;
 }
 
 @theme inline {
@@ -25,7 +66,7 @@ body {
 }
 
 .tile-bg {
-  background-color: #5fcde4; /* Sky blue like Mario */
+  background-color: #5d5dee; /* Sky blue like Mario */
   background-image: 
     repeating-linear-gradient(
       0deg,
@@ -45,4 +86,86 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.transparent-bg {
+  background-color: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(15px);
+}
+
+/* 
+* UTILITY CLASSES
+*/
+
+/* Padding */
+.p-xs {
+  padding: var(--space-xs);
+}
+
+.p-sm {
+  padding: var(--space-sm);
+}
+
+.p-md {
+  padding: var(--space-md);
+}
+
+.p-lg {
+  padding: var(--space-xl);
+}
+
+/* Gaps */
+.gap-sm {
+  gap: var(--space-sm);
+}
+
+.gap-md {
+  gap: var(--space-md);
+}
+
+.gap-lg {
+  gap: var(--space-lg);
+}
+
+/* Margins */
+.mb-xs {
+  margin-bottom: var(--space-xs);
+}
+
+.mb-sm {
+  margin-bottom: var(--space-sm);
+}
+
+.mb-md {
+  margin-bottom: var(--space-md);
+}
+
+.mb-lg {
+  margin-bottom: var(--space-lg);
+}
+
+.mt-xs {
+  margin-top: var(--space-xs);
+}
+
+.mt-sm {
+  margin-top: var(--space-sm);
+}
+
+.mt-md {
+  margin-top: var(--space-md);
+}
+
+.mt-lg {
+  margin-top: var(--space-lg);
+}
+
+/* Border Radius */
+.rounded-md {
+  border-radius: var(--radius-md);
+}
+
+/* Border Width */
+.border-md {
+  border-width: var(--border-md);
 }
