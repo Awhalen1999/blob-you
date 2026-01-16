@@ -176,3 +176,13 @@ body {
 .border-md {
   border-width: var(--border-md);
 }
+
+/*
+* ANIMATIONS
+*/
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}

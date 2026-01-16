@@ -6,6 +6,7 @@ import { auth } from '@/lib/firebase';
 import AuthForm from '@/components/auth/AuthForm';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { useGameStore } from '@/store/gameStore';
+import DrawingCanvas from '@/components/game/DrawingCanvas';
 
 type MenuView = 'main' | 'generate' | 'join';
 
@@ -25,7 +26,7 @@ export default function Home() {
   const [joinCode, setJoinCode] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const { setGameMode, setRoomCode, setIsHost } = useGameStore();
+  const { phase, setPhase, setGameMode, setRoomCode, setIsHost } = useGameStore();
 
   if (loading) {
     return <LoadingScreen />;
@@ -33,6 +34,11 @@ export default function Home() {
 
   if (!user) {
     return <AuthForm />;
+  }
+
+  // Drawing phase
+  if (phase === 'drawing') {
+    return <DrawingCanvas />;
   }
 
   const displayName = user.displayName || user.email?.split('@')[0] || 'Player';
@@ -64,8 +70,7 @@ export default function Home() {
 
   const handleFightNPC = () => {
     setGameMode('npc');
-    console.log('Starting NPC fight - will go to drawing phase');
-    // TODO: setPhase('drawing')
+    setPhase('drawing');
   };
 
   const handleBack = () => {
