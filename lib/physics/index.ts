@@ -1,13 +1,13 @@
 /**
  * Physics Engine
  * 
- * Clean exports for the physics system.
+ * Clean exports for the blob battle system.
  */
 
-// Configuration
+// Configuration (tunable values)
 export * from './constants';
 
-// Geometry utilities
+// Geometry (pure math utilities)
 export {
   calculateArea,
   calculateVertexAngle,
@@ -30,14 +30,4 @@ export { createBlobBody, scaleBlobToFit } from './createBlob';
 export type { CreateBlobOptions } from './createBlob';
 
 // Combat
-export {
-  calculateCollisionDamage,
-  applyChargeForce,
-  applySpin,
-  applyGravityPull,
-  createArenaWalls,
-  decideCombatAction,
-  executeCombatAction,
-} from './combat';
-export type { CombatAction } from './combat';
-
+export { calculateCollisionDamage, createArenaWalls } from './combat';

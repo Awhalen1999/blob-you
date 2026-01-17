@@ -145,7 +145,7 @@ export default function FightArena() {
       Matter.Body.setAngularVelocity(opponentBlob.body, -PHYSICS.INITIAL_SPIN);
     }
 
-    // Handle collisions
+    // Handle collisions - both blobs take damage on impact
     Matter.Events.on(engine, 'collisionStart', (event) => {
       for (const pair of event.pairs) {
         const { bodyA, bodyB } = pair;
@@ -154,21 +154,28 @@ export default function FightArena() {
 
         if (!pStats || !oStats) continue;
 
-        // Player hits opponent
-        if (bodyA.label === 'player' && bodyB.label === 'opponent') {
-          const dmg = calculateCollisionDamage(bodyA, pStats, bodyB);
-          if (dmg > 0) {
-            setOpponentHp(prev => Math.max(0, prev - dmg));
-            console.log(`Player dealt ${dmg} damage`);
-          }
-        }
+        // Check if this is a player-opponent collision (either order)
+        const isPlayerA = bodyA.label === 'player';
+        const isPlayerB = bodyB.label === 'player';
+        const isOpponentA = bodyA.label === 'opponent';
+        const isOpponentB = bodyB.label === 'opponent';
 
-        // Opponent hits player
-        if (bodyA.label === 'opponent' && bodyB.label === 'player') {
-          const dmg = calculateCollisionDamage(bodyA, oStats, bodyB);
-          if (dmg > 0) {
-            setPlayerHp(prev => Math.max(0, prev - dmg));
-            console.log(`Opponent dealt ${dmg} damage`);
+        if ((isPlayerA && isOpponentB) || (isOpponentA && isPlayerB)) {
+          const playerBody = isPlayerA ? bodyA : bodyB;
+          const opponentBody = isOpponentA ? bodyA : bodyB;
+
+          // Player damages opponent
+          const dmgToOpponent = calculateCollisionDamage(playerBody, pStats, opponentBody);
+          if (dmgToOpponent > 0) {
+            setOpponentHp(prev => Math.max(0, prev - dmgToOpponent));
+            console.log(`Player dealt ${dmgToOpponent} damage`);
+          }
+
+          // Opponent damages player
+          const dmgToPlayer = calculateCollisionDamage(opponentBody, oStats, playerBody);
+          if (dmgToPlayer > 0) {
+            setPlayerHp(prev => Math.max(0, prev - dmgToPlayer));
+            console.log(`Opponent dealt ${dmgToPlayer} damage`);
           }
         }
       }

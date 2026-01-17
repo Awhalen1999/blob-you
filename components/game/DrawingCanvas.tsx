@@ -97,10 +97,11 @@ export default function DrawingCanvas() {
 
   // Auto-ready when timer hits 0
   useEffect(() => {
-    if (drawingTimeLeft === 0 && !isReady) {
-      handleReady();
+    if (drawingTimeLeft === 0 && !isReady && gameMode === 'npc') {
+      setIsReady(true);
+      setPhase('fighting');
     }
-  }, [drawingTimeLeft, isReady]);
+  }, [drawingTimeLeft, isReady, gameMode, setPhase]);
 
   // Start drawing
   const startDrawing = (point: Point) => {

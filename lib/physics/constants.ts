@@ -67,10 +67,10 @@ export const STATS = {
 
 export const COMBAT = {
   /** Damage calculation */
-  MIN_IMPACT_VELOCITY: 2,      // Below this = no damage (higher threshold for bouncing)
-  VELOCITY_FACTOR: 0.5,        // How much speed affects damage
-  MASS_FACTOR: 0.15,           // How much mass affects damage
-  SHARPNESS_FACTOR: 0.12,      // How much sharpness affects damage
+  MIN_IMPACT_VELOCITY: 2,      // Below this = no damage
+  VELOCITY_FACTOR: 0.3,        // How much speed affects damage (lowered)
+  MASS_FACTOR: 0.08,           // How much mass affects damage (lowered)
+  SHARPNESS_FACTOR: 0.25,      // How much sharpness affects damage (boosted!)
 };
 
 // ===========================================
