@@ -36,10 +36,10 @@ export default function FightArena() {
   const [opponentStats, setOpponentStats] = useState<BlobStats | null>(null);
   const [battleOver, setBattleOver] = useState(false);
   const [isVictory, setIsVictory] = useState(false);
+  const [opponentName, setOpponentName] = useState('Opponent');
 
   const {
     myStrokes,
-    npcDifficulty,
     setWinner,
     reset,
     setPhase,
@@ -122,8 +122,8 @@ export default function FightArena() {
       Matter.Body.setAngularVelocity(playerBlob.body, PHYSICS.INITIAL_SPIN);
     }
 
-    // Create opponent blob (NPC)
-    const npc = getRandomNPC(npcDifficulty);
+    // Create opponent blob (NPC) - random from all NPCs
+    const npc = getRandomNPC();
     const opponentBlob = createBlobBody(npc.strokes, {
       x: ARENA.WIDTH - ARENA.SPAWN_OFFSET,
       y: ARENA.HEIGHT / 2,
@@ -139,6 +139,7 @@ export default function FightArena() {
       
       // Defer state updates to avoid cascading render warning
       requestAnimationFrame(() => {
+        setOpponentName(npc.name);
         setOpponentStats(opponentBlob.stats);
         setOpponentHp(opponentBlob.stats.hp);
         setOpponentMaxHp(opponentBlob.stats.maxHp);
@@ -212,7 +213,7 @@ export default function FightArena() {
     Matter.Render.run(render);
 
     return cleanup;
-  }, [myStrokes, npcDifficulty, cleanup]);
+  }, [myStrokes, cleanup]);
 
   // Check for battle end and remove losing blob
   useEffect(() => {
@@ -274,7 +275,7 @@ export default function FightArena() {
       {/* Health bars */}
       <div className="flex justify-between w-full max-w-[700px] mb-md px-sm">
         <HealthBar current={playerHp} max={playerMaxHp} label="Your Blob" isPlayer />
-        <HealthBar current={opponentHp} max={opponentMaxHp} label="Opponent" />
+        <HealthBar current={opponentHp} max={opponentMaxHp} label={opponentName} />
       </div>
 
       {/* Arena */}
