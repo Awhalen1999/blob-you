@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { auth } from '@/lib/firebase';
 import AuthForm from '@/components/auth/AuthForm';
@@ -8,6 +9,7 @@ import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { useGameStore } from '@/store/gameStore';
 import DrawingCanvas from '@/components/game/DrawingCanvas';
 import FightArena from '@/components/game/FightArena';
+import Button from '@/components/ui/Button';
 
 type MenuView = 'main' | 'generate' | 'join';
 
@@ -111,19 +113,13 @@ export default function Home() {
           Share this code with your friend!
         </p>
 
-        <div className="flex flex-col gap-sm">
-          <button
-            onClick={handleCopyCode}
-            className="w-full p-sm bg-gray-800 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors"
-          >
+        <div className="flex flex-col gap-3">
+          <Button onClick={handleCopyCode} variant="success" size="lg" fullWidth>
             {copied ? 'Copied!' : 'Copy Code'}
-          </button>
-          <button
-            onClick={handleBack}
-            className="w-full p-sm bg-transparent text-white/70 border border-white/30 rounded-md text-sm font-medium hover:bg-white/10 hover:text-white transition-colors"
-          >
+          </Button>
+          <Button onClick={handleBack} variant="secondary" size="lg" fullWidth>
             Back
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -150,20 +146,19 @@ export default function Home() {
           />
         </div>
 
-        <div className="flex flex-col gap-sm">
-          <button
+        <div className="flex flex-col gap-3">
+          <Button
             onClick={handleJoinRoom}
             disabled={joinCode.length !== 6}
-            className="w-full p-sm bg-gray-800 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:hover:bg-gray-800"
+            variant="success"
+            size="lg"
+            fullWidth
           >
             Join Game
-          </button>
-          <button
-            onClick={handleBack}
-            className="w-full p-sm bg-transparent text-white/70 border border-white/30 rounded-md text-sm font-medium hover:bg-white/10 hover:text-white transition-colors"
-          >
+          </Button>
+          <Button onClick={handleBack} variant="secondary" size="lg" fullWidth>
             Back
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -171,38 +166,35 @@ export default function Home() {
 
   // Main Menu View
   return (
-    <div className="transparent-bg w-full max-w-md mx-auto p-lg rounded-sm border border-white/20">
-      <header className="mb-lg text-center">
-        <h1 className="text-3xl font-bold text-white">blob.you</h1>
-      </header>
-
-      <div className="flex flex-col gap-sm mb-lg">
-        <button
-          onClick={handleGenerateCode}
-          className="w-full p-sm bg-gray-800 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors"
-        >
-          Generate Match Code
-        </button>
-        <button
-          onClick={() => setMenuView('join')}
-          className="w-full p-sm bg-gray-800 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors"
-        >
-          Enter Match Code
-        </button>
-        <button
-          onClick={handleFightNPC}
-          className="w-full p-sm bg-gray-800 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors"
-        >
-          Offline Match
-        </button>
-      </div>
-
-      <button
+    <div className="relative w-full h-full min-h-screen flex items-center justify-center">
+      {/* Sign Out button - top left */}
+      <Button
         onClick={() => auth.signOut()}
-        className="w-full p-sm bg-transparent text-white/70 border border-white/30 rounded-md text-sm font-medium hover:bg-white/10 hover:text-white transition-colors"
+        variant="secondary"
+        size="md"
+        icon={<LogOut className="w-4 h-4" />}
+        className="absolute top-4 left-4 z-10"
       >
         Sign Out
-      </button>
+      </Button>
+
+      <div className="transparent-bg w-full max-w-md mx-auto p-lg rounded-sm border border-white/20">
+        <header className="mb-lg text-center">
+          <h1 className="text-3xl font-bold text-white">blob.you</h1>
+        </header>
+
+        <div className="flex flex-col gap-3">
+          <Button onClick={handleGenerateCode} variant="primary" size="lg" fullWidth>
+            Generate Match Code
+          </Button>
+          <Button onClick={() => setMenuView('join')} variant="primary" size="lg" fullWidth>
+            Enter Match Code
+          </Button>
+          <Button onClick={handleFightNPC} variant="primary" size="lg" fullWidth>
+            Offline Match
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

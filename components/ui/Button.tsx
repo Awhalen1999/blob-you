@@ -26,16 +26,16 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const VARIANT_STYLES = {
   primary: {
-    base: 'bg-blue-500 border-blue-700 text-white hover:bg-blue-600 active:bg-blue-700',
+    base: 'bg-blue-500 border-blue-800 text-white hover:bg-blue-600 active:bg-blue-600',
   },
   secondary: {
-    base: 'bg-gray-500 border-gray-700 text-white hover:bg-gray-600 active:bg-gray-700',
+    base: 'bg-gray-500 border-gray-700 text-white hover:bg-gray-600 active:bg-gray-600',
   },
   danger: {
-    base: 'bg-red-500 border-red-700 text-white hover:bg-red-600 active:bg-red-700',
+    base: 'bg-red-400 border-red-700 text-white hover:bg-red-500 active:bg-red-500',
   },
   success: {
-    base: 'bg-green-500 border-green-700 text-white hover:bg-green-600 active:bg-green-700',
+    base: 'bg-green-500 border-green-700 text-white hover:bg-green-600 active:bg-green-600',
   },
 } as const;
 

@@ -1,5 +1,7 @@
 'use client';
 
+import Button from '@/components/ui/Button';
+
 interface BattleResultProps {
   isVictory: boolean;
   onRematch: () => void;
@@ -9,47 +11,44 @@ interface BattleResultProps {
 export default function BattleResult({ isVictory, onRematch, onMainMenu }: BattleResultProps) {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/70 z-50">
-      <div className="flex flex-col items-center gap-md p-lg">
-        {/* Result text */}
+      <div className="flex flex-col items-center gap-6 p-lg">
+        {/* Result text - retro Nintendo style */}
         <h1
           className={`
-            text-6xl font-black tracking-wider
-            ${isVictory
-              ? 'text-green-400 drop-shadow-[0_0_20px_rgba(74,222,128,0.5)]'
-              : 'text-red-400 drop-shadow-[0_0_20px_rgba(248,113,113,0.5)]'
-            }
+            text-7xl font-black uppercase tracking-[0.1em]
+            ${isVictory ? 'text-green-400' : 'text-red-500'}
           `}
           style={{
             textShadow: isVictory
-              ? '0 0 10px rgba(74,222,128,0.8), 0 0 30px rgba(74,222,128,0.4)'
-              : '0 0 10px rgba(248,113,113,0.8), 0 0 30px rgba(248,113,113,0.4)',
+              ? '4px 4px 0px #15803d, 8px 8px 0px rgba(0,0,0,0.3), 0 0 20px rgba(74,222,128,0.4)'
+              : '4px 4px 0px #b91c1c, 8px 8px 0px rgba(0,0,0,0.3), 0 0 20px rgba(239,68,68,0.4)',
+            letterSpacing: '0.15em',
           }}
         >
           {isVictory ? 'VICTORY!' : 'DEFEAT'}
         </h1>
 
-        {/* Sub text */}
-        <p className="text-white/70 text-lg font-medium">
+        {/* Sub text - retro style */}
+        <p
+          className="text-white text-xl font-bold uppercase tracking-wide"
+          style={{
+            textShadow: '2px 2px 0px rgba(0,0,0,0.5), 0 0 10px rgba(0,0,0,0.3)',
+          }}
+        >
           {isVictory
-            ? 'Your blob emerged triumphant!'
-            : 'Your blob has been defeated...'}
+            ? 'YOUR BLOB EMERGED TRIUMPHANT!'
+            : 'YOUR BLOB HAS BEEN DEFEATED...'}
         </p>
 
         {/* Buttons */}
-        <div className="flex gap-md mt-md">
-          <button
-            onClick={onRematch}
-            className="px-8 py-3 bg-gray-800 text-white border-4 border-white/30 rounded-md text-lg font-bold hover:bg-gray-700 hover:border-white/50 transition-all"
-          >
+        <div className="flex gap-4 mt-4">
+          <Button onClick={onRematch} variant="danger" size="lg">
             Rematch
-          </button>
+          </Button>
 
-          <button
-            onClick={onMainMenu}
-            className="px-8 py-3 bg-gray-800 text-white border-4 border-white/30 rounded-md text-lg font-bold hover:bg-gray-700 hover:border-white/50 transition-all"
-          >
+          <Button onClick={onMainMenu} variant="primary" size="lg">
             Main Menu
-          </button>
+          </Button>
         </div>
       </div>
     </div>
