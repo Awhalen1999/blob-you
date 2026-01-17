@@ -95,3 +95,12 @@ export const POWERUP_COLORS = {
   shield: '#3b82f6',
   regen: '#f59e0b',
 } as const;
+
+export const POWERUP_BORDER_COLORS = {
+  damage: '#b91c1c',
+  heal: '#15803d',
+  shield: '#1d4ed8',
+  regen: '#b45309',
+} as const;
+
+

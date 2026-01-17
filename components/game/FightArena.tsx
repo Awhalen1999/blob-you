@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Matter from 'matter-js';
-import { Skull, HeartPlus, Shield, Zap } from 'lucide-react';
+import { Skull, Heart, Shield, Zap } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
-import { ARENA, PHYSICS, POWERUP, POWERUP_COLORS } from '@/lib/physics/constants';
+import { ARENA, PHYSICS, POWERUP, POWERUP_BORDER_COLORS, POWERUP_COLORS } from '@/lib/physics/constants';
 import { createBlobBody } from '@/lib/physics/createBlob';
 import { createArenaWalls, calculateCollisionDamage } from '@/lib/physics/combat';
 import { getRandomNPC } from '@/lib/npc';
@@ -15,7 +15,7 @@ import BattleResult from './BattleResult';
 /** Power-up UI configuration */
 const POWERUP_CONFIG = {
   damage: { bg: 'bg-red-500', border: 'border-red-700', icon: Skull, label: '2x DMG' },
-  heal: { bg: 'bg-green-500', border: 'border-green-700', icon: HeartPlus, label: '+20' },
+  heal: { bg: 'bg-green-500', border: 'border-green-700', icon: Heart, label: '+20' },
   shield: { bg: 'bg-blue-500', border: 'border-blue-700', icon: Shield, label: 'SHIELD' },
   regen: { bg: 'bg-amber-500', border: 'border-amber-700', icon: Zap, label: 'REGEN' },
 } as const;
@@ -23,7 +23,7 @@ const POWERUP_CONFIG = {
 /** Icon mapping for arena overlay */
 const POWERUP_ICONS = {
   damage: Skull,
-  heal: HeartPlus,
+  heal: Heart,
   shield: Shield,
   regen: Zap,
 } as const;
@@ -44,7 +44,7 @@ function PowerUpIndicator({ type }: { type: PowerUpType }) {
       `}
       style={{
         textShadow: '0 1px 1px rgba(0,0,0,0.5)',
-        boxShadow: '0 2px 0 rgba(0,0,0,0.3)',
+        
       }}
     >
       <Icon className="w-3 h-3" />
@@ -455,8 +455,12 @@ export default function FightArena() {
           return (
             <div
               key={powerUp.id}
-              className="absolute pointer-events-none"
+              className="absolute pointer-events-none flex items-center justify-center rounded-full w-8 h-8 border-2"
               style={{
+                backgroundColor: POWERUP_COLORS[powerUp.type],
+                borderColor: POWERUP_BORDER_COLORS[powerUp.type],
+                boxShadow:
+                  'inset 0 1px 0 rgba(255,255,255,0.25), 0 2px 0 rgba(0,0,0,0.35)',
                 left: powerUp.x + 4,
                 top: powerUp.y + 4,
                 transform: 'translate(-50%, -50%)',
