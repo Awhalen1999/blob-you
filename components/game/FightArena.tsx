@@ -256,14 +256,16 @@ export default function FightArena() {
       {/* Arena */}
       <div className="relative">
         <div ref={containerRef} style={{ width: ARENA.WIDTH, height: ARENA.HEIGHT }} />
-        {battleOver && (
-          <BattleResult
-            isVictory={isVictory}
-            onRematch={handleRematch}
-            onMainMenu={handleMainMenu}
-          />
-        )}
       </div>
+
+      {/* Battle result overlay - full screen */}
+      {battleOver && (
+        <BattleResult
+          isVictory={isVictory}
+          onRematch={handleRematch}
+          onMainMenu={handleMainMenu}
+        />
+      )}
 
       {/* Stats display */}
       <div className="flex justify-between w-full max-w-[700px] mt-md px-sm text-white/70 text-sm">

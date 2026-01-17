@@ -8,7 +8,7 @@ interface BattleResultProps {
 
 export default function BattleResult({ isVictory, onRematch, onMainMenu }: BattleResultProps) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-20">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/70 z-50">
       <div className="flex flex-col items-center gap-md p-lg">
         {/* Result text */}
         <h1
