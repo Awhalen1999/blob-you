@@ -81,5 +81,16 @@ export const ARENA = {
   WIDTH: 700,
   HEIGHT: 500,
   WALL_THICKNESS: 50,
-  SPAWN_OFFSET: 200,           // Distance from center for spawn
+  SPAWN_OFFSET: 200,
+};
+
+// ===========================================
+// POWER-UPS
+// ===========================================
+
+export const POWERUP = {
+  TRIGGER_HP: 50,              // Spawn when either blob hits this HP
+  RADIUS: 15,                  // Size of power-up dot
+  DOUBLE_DAMAGE_MULT: 2,       // Damage multiplier
+  HEAL_AMOUNT: 20,             // HP restored
 };
