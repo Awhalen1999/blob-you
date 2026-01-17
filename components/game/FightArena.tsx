@@ -253,7 +253,7 @@ export default function FightArena() {
     setWinner(null);
     clearStrokes();
     resetInk();
-    setDrawingTimeLeft(30);
+    setDrawingTimeLeft(15);
     setPhase('drawing');
   };
 

@@ -49,7 +49,7 @@ type GameStore = {
 };
 
 const INITIAL_INK = 100;
-const DRAWING_TIME = 30;
+const DRAWING_TIME = 15;
 
 export const useGameStore = create<GameStore>((set) => ({
   // Game phase
