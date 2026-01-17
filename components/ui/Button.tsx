@@ -40,9 +40,9 @@ const VARIANT_STYLES = {
 } as const;
 
 const SIZE_STYLES = {
-  sm: 'px-3 py-1.5 text-xs',
-  md: 'px-4 py-2 text-sm',
-  lg: 'px-6 py-3 text-base',
+  sm: 'px-3 text-xs h-[28px]',
+  md: 'px-4 text-sm h-[36px]',
+  lg: 'px-6 text-base h-[44px]',
 } as const;
 
 export default function Button({
@@ -70,8 +70,8 @@ export default function Button({
         rounded
         font-bold uppercase tracking-wide
         transition-all duration-100
-        ${!isDisabled ? 'hover:translate-y-px' : ''}
-        ${!isDisabled ? 'active:translate-y-px' : ''}
+        ${!isDisabled ? 'hover:border-b-2' : ''}
+        ${!isDisabled ? 'active:border-b-2' : ''}
         ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         ${fullWidth ? 'w-full' : ''}
         ${className}
