@@ -58,7 +58,7 @@ export default function FightArena() {
   const playerStatsRef = useRef<BlobStats | null>(null);
   const opponentStatsRef = useRef<BlobStats | null>(null);
 
-  const powerUpSpawnCountRef = useRef(0);
+  const triggeredThresholdsRef = useRef<Set<number>>(new Set());
   const playerDamageMultRef = useRef(1);
   const opponentDamageMultRef = useRef(1);
   const playerShieldRef = useRef(false);
@@ -86,14 +86,11 @@ export default function FightArena() {
   const spawnPowerUp = useCallback((threshold: number) => {
     if (!engineRef.current) return;
 
-    // Check if this threshold already triggered a spawn
-    const spawnIndex = 
-      threshold === POWERUP.TRIGGER_HP_1 ? 1 :
-      threshold === POWERUP.TRIGGER_HP_2 ? 2 :
-      threshold === POWERUP.TRIGGER_HP_3 ? 3 : 4;
-    if (powerUpSpawnCountRef.current >= spawnIndex) return;
+    // Check if this specific threshold has already been triggered
+    if (triggeredThresholdsRef.current.has(threshold)) return;
 
-    powerUpSpawnCountRef.current = spawnIndex;
+    // Mark this threshold as triggered (can never trigger again)
+    triggeredThresholdsRef.current.add(threshold);
     const types: PowerUpType[] = ['damage', 'heal', 'shield', 'regen'];
     const type = types[Math.floor(Math.random() * types.length)];
 
@@ -138,7 +135,7 @@ export default function FightArena() {
     powerUpBodiesRef.current.clear();
     playerStatsRef.current = null;
     opponentStatsRef.current = null;
-    powerUpSpawnCountRef.current = 0;
+    triggeredThresholdsRef.current.clear();
     playerDamageMultRef.current = 1;
     opponentDamageMultRef.current = 1;
     playerShieldRef.current = false;

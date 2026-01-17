@@ -96,5 +96,5 @@ export const POWERUP = {
   RADIUS: 15,                  // Size of power-up dot
   DOUBLE_DAMAGE_MULT: 2,       // Damage multiplier
   HEAL_AMOUNT: 20,             // HP restored
-  REGEN_HEAL_AMOUNT: 2,        // HP per wall bounce
+  REGEN_HEAL_AMOUNT: 3,        // HP per wall bounce
 };
