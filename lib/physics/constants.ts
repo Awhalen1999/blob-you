@@ -55,7 +55,7 @@ export const STATS = {
   HP_PER_AREA: 0.02,           // Larger = more HP
   HP_PER_INK: 0.5,             // More ink used = more HP
   HP_MIN: 30,
-  HP_MAX: 200,
+  HP_MAX: 100,
   
   /** Stability: affects tipping */
   STABILITY_BASE: 100,
