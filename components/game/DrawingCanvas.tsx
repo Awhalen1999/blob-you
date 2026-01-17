@@ -30,7 +30,9 @@ export default function DrawingCanvas() {
   // Sync liveInk with store when not drawing
   useEffect(() => {
     if (!isDrawing) {
-      setLiveInk(inkRemaining);
+      requestAnimationFrame(() => {
+        setLiveInk(inkRemaining);
+      });
     }
   }, [inkRemaining, isDrawing]);
 
@@ -98,8 +100,10 @@ export default function DrawingCanvas() {
   // Auto-ready when timer hits 0
   useEffect(() => {
     if (drawingTimeLeft === 0 && !isReady && gameMode === 'npc') {
-      setIsReady(true);
-      setPhase('fighting');
+      requestAnimationFrame(() => {
+        setIsReady(true);
+        setPhase('fighting');
+      });
     }
   }, [drawingTimeLeft, isReady, gameMode, setPhase]);
 
@@ -279,7 +283,7 @@ export default function DrawingCanvas() {
                   ? 'bg-red-400'
                   : inkLow
                     ? 'bg-orange-400'
-                    : 'bg-white/90'
+                    : 'bg-green-500'
                 }
               `}
               style={{ height: `${liveInk}%` }}
@@ -287,7 +291,7 @@ export default function DrawingCanvas() {
             {/* Meter lines */}
             <div className="absolute inset-0 flex flex-col justify-between py-1 pointer-events-none">
               {[...Array(10)].map((_, i) => (
-                <div key={i} className="w-full h-px bg-white/20" />
+                <div key={i} className="w-full h-px bg-purple-900/30" />
               ))}
             </div>
           </div>
