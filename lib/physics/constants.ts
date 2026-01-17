@@ -5,6 +5,8 @@
  * Adjust these to change game feel without touching logic.
  */
 
+import { Skull, Heart, Shield, Zap } from 'lucide-react';
+
 /** Physics body properties */
 export const PHYSICS = {
   /** Zero gravity for top-down arena */
@@ -101,6 +103,22 @@ export const POWERUP_BORDER_COLORS = {
   heal: '#15803d',
   shield: '#1d4ed8',
   regen: '#b45309',
+} as const;
+
+/** Power-up icons */
+export const POWERUP_ICONS = {
+  damage: Skull,
+  heal: Heart,
+  shield: Shield,
+  regen: Zap,
+} as const;
+
+/** Power-up labels */
+export const POWERUP_LABELS = {
+  damage: '2x DMG',
+  heal: '+20',
+  shield: 'SHIELD',
+  regen: 'REGEN',
 } as const;
 
 

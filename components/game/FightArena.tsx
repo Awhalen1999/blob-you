@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Matter from 'matter-js';
-import { Skull, Heart, Shield, Zap, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
-import { ARENA, PHYSICS, POWERUP, POWERUP_BORDER_COLORS, POWERUP_COLORS } from '@/lib/physics/constants';
+import { ARENA, PHYSICS, POWERUP, POWERUP_BORDER_COLORS, POWERUP_COLORS, POWERUP_ICONS, POWERUP_LABELS } from '@/lib/physics/constants';
 import { createBlobBody } from '@/lib/physics/createBlob';
 import { createArenaWalls, calculateCollisionDamage } from '@/lib/physics/combat';
 import { getRandomNPC } from '@/lib/npc';
@@ -13,39 +13,19 @@ import HealthBar from './HealthBar';
 import BattleResult from './BattleResult';
 import Button from '@/components/ui/Button';
 
-/** Power-up UI configuration */
-const POWERUP_CONFIG = {
-  damage: { bg: 'bg-red-500', border: 'border-red-700', icon: Skull, label: '2x DMG' },
-  heal: { bg: 'bg-green-500', border: 'border-green-700', icon: Heart, label: '+20' },
-  shield: { bg: 'bg-blue-500', border: 'border-blue-700', icon: Shield, label: 'SHIELD' },
-  regen: { bg: 'bg-amber-500', border: 'border-amber-700', icon: Zap, label: 'REGEN' },
-} as const;
-
-/** Icon mapping for arena overlay */
-const POWERUP_ICONS = {
-  damage: Skull,
-  heal: Heart,
-  shield: Shield,
-  regen: Zap,
-} as const;
-
 function PowerUpIndicator({ type }: { type: PowerUpType }) {
-  const { bg, border, icon: Icon, label } = POWERUP_CONFIG[type];
+  const Icon = POWERUP_ICONS[type];
+  const label = POWERUP_LABELS[type];
+  const bgColor = POWERUP_COLORS[type];
+  const borderColor = POWERUP_BORDER_COLORS[type];
 
   return (
     <div
-      className={`
-        inline-flex items-center gap-1 px-2 py-0.5
-        ${bg} ${border}
-        border-2 border-b-[3.5px]
-        rounded
-        font-bold text-[10px] uppercase tracking-wide
-        text-white
-        relative
-      `}
+      className="inline-flex items-center gap-1 px-2 py-0.5 border-2 border-b-[3.5px] rounded font-bold text-[10px] uppercase tracking-wide text-white relative"
       style={{
+        backgroundColor: bgColor,
+        borderColor: borderColor,
         textShadow: '0 1px 1px rgba(0,0,0,0.5)',
-        
       }}
     >
       <Icon className="w-3 h-3" />
