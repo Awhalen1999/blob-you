@@ -172,9 +172,8 @@ export default function Home() {
   // Main Menu View
   return (
     <div className="transparent-bg w-full max-w-md mx-auto p-lg rounded-sm border border-white/20">
-      <header className="mb-md text-center">
+      <header className="mb-lg text-center">
         <h1 className="text-3xl font-bold text-white">blob.you</h1>
-        <p className="text-sm opacity-80">Welcome, {displayName}!</p>
       </header>
 
       <div className="flex flex-col gap-sm mb-lg">
