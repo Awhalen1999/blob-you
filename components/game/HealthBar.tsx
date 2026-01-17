@@ -23,8 +23,8 @@ export default function HealthBar({ current, max, label, isPlayer = false }: Hea
 
   // Border color
   const getBorderColor = () => {
-    if (isCritical) return 'border-red-400';
-    if (isLow) return 'border-orange-400';
+    if (isCritical) return 'border-red-400/70';
+    if (isLow) return 'border-orange-400/70';
     return 'border-white/40';
   };
 
