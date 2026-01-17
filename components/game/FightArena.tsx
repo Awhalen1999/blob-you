@@ -105,9 +105,13 @@ export default function FightArena() {
       Matter.Composite.add(engine.world, playerBlob.body);
       playerBodyRef.current = playerBlob.body;
       playerStatsRef.current = playerBlob.stats;
-      setPlayerStats(playerBlob.stats);
-      setPlayerHp(playerBlob.stats.hp);
-      setPlayerMaxHp(playerBlob.stats.maxHp);
+      
+      // Defer state updates to avoid cascading render warning
+      requestAnimationFrame(() => {
+        setPlayerStats(playerBlob.stats);
+        setPlayerHp(playerBlob.stats.hp);
+        setPlayerMaxHp(playerBlob.stats.maxHp);
+      });
       
       // Give player initial velocity (toward opponent, with some randomness)
       const angle = Math.random() * 0.5 - 0.25; // Slight random angle
@@ -132,9 +136,13 @@ export default function FightArena() {
       Matter.Composite.add(engine.world, opponentBlob.body);
       opponentBodyRef.current = opponentBlob.body;
       opponentStatsRef.current = opponentBlob.stats;
-      setOpponentStats(opponentBlob.stats);
-      setOpponentHp(opponentBlob.stats.hp);
-      setOpponentMaxHp(opponentBlob.stats.maxHp);
+      
+      // Defer state updates to avoid cascading render warning
+      requestAnimationFrame(() => {
+        setOpponentStats(opponentBlob.stats);
+        setOpponentHp(opponentBlob.stats.hp);
+        setOpponentMaxHp(opponentBlob.stats.maxHp);
+      });
       
       // Give opponent initial velocity (toward player, with some randomness)
       const angle = Math.PI + (Math.random() * 0.5 - 0.25); // Opposite direction
@@ -206,18 +214,34 @@ export default function FightArena() {
     return cleanup;
   }, [myStrokes, npcDifficulty, cleanup]);
 
-  // Check for battle end
+  // Check for battle end and remove losing blob
   useEffect(() => {
     if (battleOver) return;
 
     if (playerHp <= 0) {
-      setBattleOver(true);
-      setIsVictory(false);
-      setWinner('opponent');
+      // Remove player blob from world
+      if (engineRef.current && playerBodyRef.current) {
+        Matter.Composite.remove(engineRef.current.world, playerBodyRef.current);
+      }
+      
+      // Defer state updates to avoid cascading render warning
+      requestAnimationFrame(() => {
+        setBattleOver(true);
+        setIsVictory(false);
+        setWinner('opponent');
+      });
     } else if (opponentHp <= 0) {
-      setBattleOver(true);
-      setIsVictory(true);
-      setWinner('me');
+      // Remove opponent blob from world
+      if (engineRef.current && opponentBodyRef.current) {
+        Matter.Composite.remove(engineRef.current.world, opponentBodyRef.current);
+      }
+      
+      // Defer state updates to avoid cascading render warning
+      requestAnimationFrame(() => {
+        setBattleOver(true);
+        setIsVictory(true);
+        setWinner('me');
+      });
     }
   }, [playerHp, opponentHp, battleOver, setWinner]);
 

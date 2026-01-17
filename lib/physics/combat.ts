@@ -60,13 +60,13 @@ export function calculateCollisionDamage(
 export function createArenaWalls(): Matter.Body[] {
   const { WIDTH: w, HEIGHT: h, WALL_THICKNESS: t } = ARENA;
   
-  const wallOptions: Matter.IBodyDefinition = {
+  const wallOptions = {
     isStatic: true,
     restitution: PHYSICS.RESTITUTION,
     friction: 0,
     label: 'wall',
     render: { fillStyle: '#1f2937' },
-  };
+  } as const;
   
   return [
     Matter.Bodies.rectangle(w / 2, -t / 2, w + t * 2, t, wallOptions),         // Top
