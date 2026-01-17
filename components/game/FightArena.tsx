@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Matter from 'matter-js';
-import { Skull, Heart, Shield, Zap } from 'lucide-react';
+import { Skull, Heart, Shield, Zap, ArrowLeft } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
 import { ARENA, PHYSICS, POWERUP, POWERUP_BORDER_COLORS, POWERUP_COLORS } from '@/lib/physics/constants';
 import { createBlobBody } from '@/lib/physics/createBlob';
@@ -11,6 +11,7 @@ import { getRandomNPC } from '@/lib/npc';
 import type { BlobStats, PowerUpType, ArenaPoweUp } from '@/types/game';
 import HealthBar from './HealthBar';
 import BattleResult from './BattleResult';
+import Button from '@/components/ui/Button';
 
 /** Power-up UI configuration */
 const POWERUP_CONFIG = {
@@ -36,7 +37,7 @@ function PowerUpIndicator({ type }: { type: PowerUpType }) {
       className={`
         inline-flex items-center gap-1 px-2 py-0.5
         ${bg} ${border}
-        border-2 border-b-[3px]
+        border-2 border-b-[3.5px]
         rounded
         font-bold text-[10px] uppercase tracking-wide
         text-white
@@ -433,12 +434,15 @@ export default function FightArena() {
 
   return (
     <div className="relative w-full h-full min-h-screen flex flex-col items-center justify-center">
-      <button
+      <Button
         onClick={handleMainMenu}
-        className="absolute top-4 left-4 z-10 px-4 py-2 bg-black/60 text-white border-2 border-white/30 rounded-md text-sm font-bold hover:bg-black/80 hover:border-white/50 transition-all"
+        variant="secondary"
+        size="md"
+        icon={<ArrowLeft className="w-4 h-4" />}
+        className="absolute top-4 left-4 z-10"
       >
-        ← Back
-      </button>
+        Back
+      </Button>
 
       {/* Health bars */}
       <div className="flex justify-between w-full max-w-[700px] mb-md px-sm">

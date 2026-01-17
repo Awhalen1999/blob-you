@@ -1,9 +1,11 @@
 'use client';
 
 import { useRef, useState, useEffect, useCallback } from 'react';
+import { ArrowLeft, Check } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
 import { getMousePos, getTouchPos, clearCanvas } from '@/lib/drawing/canvas';
 import type { Point, Stroke } from '@/types/game';
+import Button from '@/components/ui/Button';
 
 const CANVAS_WIDTH = 600;
 const CANVAS_HEIGHT = 450;
@@ -214,12 +216,15 @@ export default function DrawingCanvas() {
   return (
     <div className="relative w-full h-full min-h-screen">
       {/* Back button - top left */}
-      <button
+      <Button
         onClick={handleBack}
-        className="absolute top-4 left-4 z-10 px-4 py-2 bg-black/60 text-white border-2 border-white/30 rounded-md text-sm font-bold hover:bg-black/80 hover:border-white/50 transition-all"
+        variant="secondary"
+        size="md"
+        icon={<ArrowLeft className="w-4 h-4" />}
+        className="absolute top-4 left-4 z-10"
       >
-        ← Back
-      </button>
+        Back
+      </Button>
 
       <div className="flex flex-col items-center justify-center gap-md h-full">
         {/* Timer - Nintendo style */}
@@ -300,19 +305,15 @@ export default function DrawingCanvas() {
       </div>
 
       {/* Ready button */}
-      <button
+      <Button
         onClick={handleReady}
         disabled={isReady}
-        className={`
-          px-8 py-3 rounded-md text-lg font-bold transition-all duration-200
-          ${isReady
-            ? 'bg-green-500 text-white border-4 border-green-300 cursor-default'
-            : 'bg-gray-800 text-white border-4 border-white/30 hover:bg-gray-700 hover:border-white/50'
-          }
-        `}
+        variant={isReady ? 'success' : 'primary'}
+        size="lg"
+        icon={isReady ? <Check className="w-5 h-5" /> : undefined}
       >
-        {isReady ? 'READY!' : 'Ready'}
-      </button>
+        {isReady ? 'Ready!' : 'Ready'}
+      </Button>
       </div>
     </div>
   );
