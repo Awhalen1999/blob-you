@@ -7,6 +7,7 @@ import AuthForm from '@/components/auth/AuthForm';
 import { LoadingScreen } from '@/components/ui/LoadingScreen';
 import { useGameStore } from '@/store/gameStore';
 import DrawingCanvas from '@/components/game/DrawingCanvas';
+import FightArena from '@/components/game/FightArena';
 
 type MenuView = 'main' | 'generate' | 'join';
 
@@ -39,6 +40,11 @@ export default function Home() {
   // Drawing phase
   if (phase === 'drawing') {
     return <DrawingCanvas />;
+  }
+
+  // Fighting phase
+  if (phase === 'fighting') {
+    return <FightArena />;
   }
 
   const displayName = user.displayName || user.email?.split('@')[0] || 'Player';

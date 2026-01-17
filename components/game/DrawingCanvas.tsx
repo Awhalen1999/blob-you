@@ -24,6 +24,7 @@ export default function DrawingCanvas() {
     setDrawingTimeLeft,
     gameMode,
     reset,
+    setPhase,
   } = useGameStore();
 
   // Sync liveInk with store when not drawing
@@ -189,8 +190,7 @@ export default function DrawingCanvas() {
     setIsReady(true);
 
     if (gameMode === 'npc') {
-      console.log('Battle mode started!');
-      // TODO: setPhase('fighting')
+      setPhase('fighting');
     }
   };
 
