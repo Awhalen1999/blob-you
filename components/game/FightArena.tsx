@@ -2,32 +2,69 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Matter from 'matter-js';
+import { Skull, HeartPlus } from 'lucide-react'
 import { useGameStore } from '@/store/gameStore';
-import { ARENA, PHYSICS } from '@/lib/physics/constants';
+import { ARENA, PHYSICS, POWERUP } from '@/lib/physics/constants';
 import { createBlobBody } from '@/lib/physics/createBlob';
-import {
-  createArenaWalls,
-  calculateCollisionDamage,
-} from '@/lib/physics/combat';
+import { createArenaWalls, calculateCollisionDamage } from '@/lib/physics/combat';
 import { getRandomNPC } from '@/lib/npc';
 import type { BlobStats } from '@/types/game';
 import HealthBar from './HealthBar';
 import BattleResult from './BattleResult';
 
+type PowerUpType = 'damage' | 'heal';
+
+function PowerUpIndicator({ type }: { type: PowerUpType }) {
+  const isDamage = type === 'damage';
+  const bgColor = isDamage ? 'bg-red-500' : 'bg-green-500';
+  const borderColor = isDamage ? 'border-red-700' : 'border-green-700';
+  const textColor = isDamage ? 'text-white' : 'text-white';
+  
+  return (
+    <div 
+      className={`
+        inline-flex items-center gap-1 px-2 py-0.5
+        ${bgColor} ${borderColor}
+        border-2 border-b-[3px]
+        rounded
+        font-bold text-[10px] uppercase tracking-wide
+        ${textColor}
+        relative
+      `}
+      style={{
+        textShadow: '0 1px 1px rgba(0,0,0,0.5)',
+        boxShadow: '0 2px 0 rgba(0,0,0,0.3)',
+      }}
+    >
+      {isDamage ? (
+        <Skull className="w-3 h-3" />
+      ) : (
+        <HeartPlus className="w-3 h-3" />
+      )}
+      <span className="leading-none">
+        {isDamage ? '2x DMG' : `+${POWERUP.HEAL_AMOUNT}`}
+      </span>
+    </div>
+  );
+}
+
 export default function FightArena() {
-  // Refs for Matter.js objects
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<Matter.Engine | null>(null);
   const renderRef = useRef<Matter.Render | null>(null);
   const runnerRef = useRef<Matter.Runner | null>(null);
   const playerBodyRef = useRef<Matter.Body | null>(null);
   const opponentBodyRef = useRef<Matter.Body | null>(null);
+  const powerUpBodyRef = useRef<Matter.Body | null>(null);
 
-  // Stats refs (for use in collision handler)
   const playerStatsRef = useRef<BlobStats | null>(null);
   const opponentStatsRef = useRef<BlobStats | null>(null);
 
-  // UI state
+  const powerUpSpawnCountRef = useRef(0);
+  const powerUpTypeRef = useRef<PowerUpType>('damage');
+  const playerDamageMultRef = useRef(1);
+  const opponentDamageMultRef = useRef(1);
+
   const [playerHp, setPlayerHp] = useState(100);
   const [playerMaxHp, setPlayerMaxHp] = useState(100);
   const [opponentHp, setOpponentHp] = useState(100);
@@ -38,17 +75,43 @@ export default function FightArena() {
   const [isVictory, setIsVictory] = useState(false);
   const [opponentName, setOpponentName] = useState('Opponent');
 
-  const {
-    myStrokes,
-    setWinner,
-    reset,
-    setPhase,
-    clearStrokes,
-    resetInk,
-    setDrawingTimeLeft,
-  } = useGameStore();
+  // Power-up UI state
+  const [powerUpPos, setPowerUpPos] = useState<{ x: number; y: number } | null>(null);
+  const [powerUpType, setPowerUpType] = useState<PowerUpType>('damage');
+  const [playerPowerUp, setPlayerPowerUp] = useState<PowerUpType | null>(null);
+  const [opponentPowerUp, setOpponentPowerUp] = useState<PowerUpType | null>(null);
 
-  // Cleanup function
+  const { myStrokes, setWinner, reset, setPhase, clearStrokes, resetInk, setDrawingTimeLeft } = useGameStore();
+
+  const spawnPowerUp = useCallback((threshold: number) => {
+    if (!engineRef.current) return;
+
+    // Check if this threshold already triggered a spawn
+    const spawnIndex = threshold === POWERUP.TRIGGER_HP_1 ? 1 : 2;
+    if (powerUpSpawnCountRef.current >= spawnIndex) return;
+
+    powerUpSpawnCountRef.current = spawnIndex;
+    const type: PowerUpType = Math.random() > 0.5 ? 'damage' : 'heal';
+    powerUpTypeRef.current = type;
+
+    const x = 100 + Math.random() * (ARENA.WIDTH - 200);
+    const y = 100 + Math.random() * (ARENA.HEIGHT - 200);
+
+    const powerUp = Matter.Bodies.circle(x, y, POWERUP.RADIUS, {
+      label: 'powerup',
+      isStatic: true,
+      isSensor: true,
+      render: {
+        fillStyle: type === 'damage' ? '#ef4444' : '#22c55e',
+      },
+    });
+
+    powerUpBodyRef.current = powerUp;
+    Matter.Composite.add(engineRef.current.world, powerUp);
+    setPowerUpPos({ x, y });
+    setPowerUpType(type);
+  }, []);
+
   const cleanup = useCallback(() => {
     if (runnerRef.current) Matter.Runner.stop(runnerRef.current);
     if (renderRef.current) {
@@ -56,25 +119,26 @@ export default function FightArena() {
       renderRef.current.canvas.remove();
     }
     if (engineRef.current) Matter.Engine.clear(engineRef.current);
-    
+
     engineRef.current = null;
     renderRef.current = null;
     runnerRef.current = null;
     playerBodyRef.current = null;
     opponentBodyRef.current = null;
+    powerUpBodyRef.current = null;
     playerStatsRef.current = null;
     opponentStatsRef.current = null;
+    powerUpSpawnCountRef.current = 0;
+    playerDamageMultRef.current = 1;
+    opponentDamageMultRef.current = 1;
   }, []);
 
-  // Initialize physics world
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Create engine with zero gravity
     const engine = Matter.Engine.create({ gravity: PHYSICS.GRAVITY });
     engineRef.current = engine;
 
-    // Create renderer
     const render = Matter.Render.create({
       element: containerRef.current,
       engine,
@@ -89,10 +153,8 @@ export default function FightArena() {
     render.canvas.style.borderRadius = '6px';
     render.canvas.style.border = '4px solid rgba(255, 255, 255, 0.4)';
 
-    // Add arena walls
     Matter.Composite.add(engine.world, createArenaWalls());
 
-    // Create player blob
     const playerBlob = createBlobBody(myStrokes, {
       x: ARENA.SPAWN_OFFSET,
       y: ARENA.HEIGHT / 2,
@@ -105,16 +167,14 @@ export default function FightArena() {
       Matter.Composite.add(engine.world, playerBlob.body);
       playerBodyRef.current = playerBlob.body;
       playerStatsRef.current = playerBlob.stats;
-      
-      // Defer state updates to avoid cascading render warning
+
       requestAnimationFrame(() => {
         setPlayerStats(playerBlob.stats);
         setPlayerHp(playerBlob.stats.hp);
         setPlayerMaxHp(playerBlob.stats.maxHp);
       });
-      
-      // Give player initial velocity (toward opponent, with some randomness)
-      const angle = Math.random() * 0.5 - 0.25; // Slight random angle
+
+      const angle = Math.random() * 0.5 - 0.25;
       Matter.Body.setVelocity(playerBlob.body, {
         x: PHYSICS.INITIAL_SPEED * Math.cos(angle),
         y: PHYSICS.INITIAL_SPEED * Math.sin(angle),
@@ -122,7 +182,6 @@ export default function FightArena() {
       Matter.Body.setAngularVelocity(playerBlob.body, PHYSICS.INITIAL_SPIN);
     }
 
-    // Create opponent blob (NPC) - random from all NPCs
     const npc = getRandomNPC();
     const opponentBlob = createBlobBody(npc.strokes, {
       x: ARENA.WIDTH - ARENA.SPAWN_OFFSET,
@@ -136,17 +195,15 @@ export default function FightArena() {
       Matter.Composite.add(engine.world, opponentBlob.body);
       opponentBodyRef.current = opponentBlob.body;
       opponentStatsRef.current = opponentBlob.stats;
-      
-      // Defer state updates to avoid cascading render warning
+
       requestAnimationFrame(() => {
         setOpponentName(npc.name);
         setOpponentStats(opponentBlob.stats);
         setOpponentHp(opponentBlob.stats.hp);
         setOpponentMaxHp(opponentBlob.stats.maxHp);
       });
-      
-      // Give opponent initial velocity (toward player, with some randomness)
-      const angle = Math.PI + (Math.random() * 0.5 - 0.25); // Opposite direction
+
+      const angle = Math.PI + (Math.random() * 0.5 - 0.25);
       Matter.Body.setVelocity(opponentBlob.body, {
         x: PHYSICS.INITIAL_SPEED * Math.cos(angle),
         y: PHYSICS.INITIAL_SPEED * Math.sin(angle),
@@ -154,51 +211,83 @@ export default function FightArena() {
       Matter.Body.setAngularVelocity(opponentBlob.body, -PHYSICS.INITIAL_SPIN);
     }
 
-    // Handle collisions - both blobs take damage on impact
     Matter.Events.on(engine, 'collisionStart', (event) => {
       for (const pair of event.pairs) {
         const { bodyA, bodyB } = pair;
+        const labels = [bodyA.label, bodyB.label];
+
+        if (labels.includes('powerup')) {
+          const picker = labels.includes('player') ? 'player' : labels.includes('opponent') ? 'opponent' : null;
+          if (picker && powerUpBodyRef.current) {
+            Matter.Composite.remove(engine.world, powerUpBodyRef.current);
+            powerUpBodyRef.current = null;
+            setPowerUpPos(null);
+
+            const type = powerUpTypeRef.current;
+            if (type === 'damage') {
+              if (picker === 'player') {
+                playerDamageMultRef.current = POWERUP.DOUBLE_DAMAGE_MULT;
+                setPlayerPowerUp('damage');
+              } else {
+                opponentDamageMultRef.current = POWERUP.DOUBLE_DAMAGE_MULT;
+                setOpponentPowerUp('damage');
+              }
+            } else {
+              if (picker === 'player') {
+                setPlayerHp(prev => Math.min(prev + POWERUP.HEAL_AMOUNT, playerMaxHp));
+                setPlayerPowerUp('heal');
+              } else {
+                setOpponentHp(prev => Math.min(prev + POWERUP.HEAL_AMOUNT, opponentMaxHp));
+                setOpponentPowerUp('heal');
+              }
+            }
+          }
+          continue;
+        }
+
         const pStats = playerStatsRef.current;
         const oStats = opponentStatsRef.current;
-
         if (!pStats || !oStats) continue;
 
-        // Check if this is a player-opponent collision (either order)
         const isPlayerA = bodyA.label === 'player';
-        const isPlayerB = bodyB.label === 'player';
         const isOpponentA = bodyA.label === 'opponent';
+        const isPlayerB = bodyB.label === 'player';
         const isOpponentB = bodyB.label === 'opponent';
 
         if ((isPlayerA && isOpponentB) || (isOpponentA && isPlayerB)) {
           const playerBody = isPlayerA ? bodyA : bodyB;
           const opponentBody = isOpponentA ? bodyA : bodyB;
 
-          // Player damages opponent
-          const dmgToOpponent = calculateCollisionDamage(playerBody, pStats, opponentBody);
-          if (dmgToOpponent > 0) {
-            setOpponentHp(prev => Math.max(0, prev - dmgToOpponent));
-            console.log(`Player dealt ${dmgToOpponent} damage`);
-          }
+          const dmgToOpponent = calculateCollisionDamage(playerBody, pStats, opponentBody) * playerDamageMultRef.current;
+          const dmgToPlayer = calculateCollisionDamage(opponentBody, oStats, playerBody) * opponentDamageMultRef.current;
 
-          // Opponent damages player
-          const dmgToPlayer = calculateCollisionDamage(opponentBody, oStats, playerBody);
+          if (dmgToOpponent > 0) {
+            setOpponentHp(prev => {
+              const newHp = Math.max(0, prev - dmgToOpponent);
+              if (newHp <= POWERUP.TRIGGER_HP_2) spawnPowerUp(POWERUP.TRIGGER_HP_2);
+              else if (newHp <= POWERUP.TRIGGER_HP_1) spawnPowerUp(POWERUP.TRIGGER_HP_1);
+              return newHp;
+            });
+          }
           if (dmgToPlayer > 0) {
-            setPlayerHp(prev => Math.max(0, prev - dmgToPlayer));
-            console.log(`Opponent dealt ${dmgToPlayer} damage`);
+            setPlayerHp(prev => {
+              const newHp = Math.max(0, prev - dmgToPlayer);
+              if (newHp <= POWERUP.TRIGGER_HP_2) spawnPowerUp(POWERUP.TRIGGER_HP_2);
+              else if (newHp <= POWERUP.TRIGGER_HP_1) spawnPowerUp(POWERUP.TRIGGER_HP_1);
+              return newHp;
+            });
           }
         }
       }
     });
 
-    // Enforce constant speed - direction changes but speed stays fixed
     Matter.Events.on(engine, 'afterUpdate', () => {
       const normalizeSpeed = (body: Matter.Body | null) => {
         if (!body) return;
-        const vx = body.velocity.x;
-        const vy = body.velocity.y;
-        const currentSpeed = Math.sqrt(vx * vx + vy * vy);
-        if (currentSpeed > 0.01) {
-          const scale = PHYSICS.INITIAL_SPEED / currentSpeed;
+        const { x: vx, y: vy } = body.velocity;
+        const speed = Math.sqrt(vx * vx + vy * vy);
+        if (speed > 0.01) {
+          const scale = PHYSICS.INITIAL_SPEED / speed;
           Matter.Body.setVelocity(body, { x: vx * scale, y: vy * scale });
         }
       };
@@ -206,38 +295,30 @@ export default function FightArena() {
       normalizeSpeed(opponentBodyRef.current);
     });
 
-    // Start physics
     const runner = Matter.Runner.create();
     runnerRef.current = runner;
     Matter.Runner.run(runner, engine);
     Matter.Render.run(render);
 
     return cleanup;
-  }, [myStrokes, cleanup]);
+  }, [myStrokes, cleanup, playerMaxHp, opponentMaxHp, spawnPowerUp]);
 
-  // Check for battle end and remove losing blob
   useEffect(() => {
     if (battleOver) return;
 
     if (playerHp <= 0) {
-      // Remove player blob from world
       if (engineRef.current && playerBodyRef.current) {
         Matter.Composite.remove(engineRef.current.world, playerBodyRef.current);
       }
-      
-      // Defer state updates to avoid cascading render warning
       requestAnimationFrame(() => {
         setBattleOver(true);
         setIsVictory(false);
         setWinner('opponent');
       });
     } else if (opponentHp <= 0) {
-      // Remove opponent blob from world
       if (engineRef.current && opponentBodyRef.current) {
         Matter.Composite.remove(engineRef.current.world, opponentBodyRef.current);
       }
-      
-      // Defer state updates to avoid cascading render warning
       requestAnimationFrame(() => {
         setBattleOver(true);
         setIsVictory(true);
@@ -246,11 +327,13 @@ export default function FightArena() {
     }
   }, [playerHp, opponentHp, battleOver, setWinner]);
 
-  // Handlers
   const handleRematch = () => {
     cleanup();
     setBattleOver(false);
     setWinner(null);
+    setPlayerPowerUp(null);
+    setOpponentPowerUp(null);
+    setPowerUpPos(null);
     clearStrokes();
     resetInk();
     setDrawingTimeLeft(15);
@@ -264,7 +347,6 @@ export default function FightArena() {
 
   return (
     <div className="relative w-full h-full min-h-screen flex flex-col items-center justify-center">
-      {/* Back button */}
       <button
         onClick={handleMainMenu}
         className="absolute top-4 left-4 z-10 px-4 py-2 bg-black/60 text-white border-2 border-white/30 rounded-md text-sm font-bold hover:bg-black/80 hover:border-white/50 transition-all"
@@ -278,77 +360,44 @@ export default function FightArena() {
         <HealthBar current={opponentHp} max={opponentMaxHp} label={opponentName} />
       </div>
 
-      {/* Arena */}
+      {/* Arena with power-up icon overlay */}
       <div className="relative">
         <div ref={containerRef} style={{ width: ARENA.WIDTH, height: ARENA.HEIGHT }} />
+
+        {/* Power-up icon overlay - centered on the ball */}
+        {/* +4 accounts for the canvas border */}
+        {powerUpPos && (
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              left: powerUpPos.x + 4,
+              top: powerUpPos.y + 4,
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            {powerUpType === 'damage' ? (
+              <Skull className="w-4 h-4 text-white drop-shadow-lg" />
+            ) : (
+              <HeartPlus className="w-4 h-4 text-white drop-shadow-lg" />
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Battle result overlay - full screen */}
       {battleOver && (
-        <BattleResult
-          isVictory={isVictory}
-          onRematch={handleRematch}
-          onMainMenu={handleMainMenu}
-        />
+        <BattleResult isVictory={isVictory} onRematch={handleRematch} onMainMenu={handleMainMenu} />
       )}
 
-      {/* Stats display */}
-      <div className="flex justify-between w-full max-w-[700px] mt-md px-sm text-white/70 text-sm">
-        <div className="space-x-4">
-          <span>
-            <b>DMG:</b>{' '}
-            <span className={playerStats?.damage 
-              ? playerStats.damage >= 20 
-                ? 'text-red-500 font-bold' 
-                : playerStats.damage >= 15 
-                  ? 'text-orange-400 font-bold' 
-                  : 'text-white/70'
-              : ''
-            }>
-              {playerStats?.damage ?? '-'}
-            </span>
-          </span>
-          <span>
-            <b>MASS:</b>{' '}
-            <span className={playerStats?.mass 
-              ? playerStats.mass >= 20
-                ? 'text-red-500 font-bold' 
-                : playerStats.mass >= 15 
-                  ? 'text-orange-400 font-bold' 
-                  : 'text-white/70'
-              : ''
-            }>
-              {playerStats?.mass ?? '-'}
-            </span>
-          </span>
+      <div className="flex justify-between w-full max-w-[700px] mt-md px-sm text-white/70 text-sm min-h-[24px]">
+        <div className="flex items-center gap-4">
+          <span><b>DMG:</b> {playerStats?.damage ?? '-'}</span>
+          <span><b>MASS:</b> {playerStats?.mass ?? '-'}</span>
+          {playerPowerUp && <PowerUpIndicator type={playerPowerUp} />}
         </div>
-        <div className="space-x-4">
-          <span>
-            <b>MASS:</b>{' '}
-            <span className={opponentStats?.mass 
-              ? opponentStats.mass >= 20 
-                ? 'text-red-500 font-bold' 
-                : opponentStats.mass >= 15 
-                  ? 'text-orange-400 font-bold' 
-                  : 'text-white/70'
-              : ''
-            }>
-              {opponentStats?.mass ?? '-'}
-            </span>
-          </span>
-          <span>
-            <b>DMG:</b>{' '}
-            <span className={opponentStats?.damage 
-              ? opponentStats.damage >= 20 
-                ? 'text-red-500 font-bold' 
-                : opponentStats.damage >= 15 
-                  ? 'text-orange-400 font-bold' 
-                  : 'text-white/70'
-              : ''
-            }>
-              {opponentStats?.damage ?? '-'}
-            </span>
-          </span>
+        <div className="flex items-center gap-4">
+          {opponentPowerUp && <PowerUpIndicator type={opponentPowerUp} />}
+          <span><b>MASS:</b> {opponentStats?.mass ?? '-'}</span>
+          <span><b>DMG:</b> {opponentStats?.damage ?? '-'}</span>
         </div>
       </div>
     </div>

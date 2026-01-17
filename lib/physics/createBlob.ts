@@ -75,8 +75,7 @@ export function createBlobBody(
         frictionAir: PHYSICS.FRICTION_AIR,
         render: {
           fillStyle: options.color ?? '#4ade80',
-          strokeStyle: '#1f2937',
-          lineWidth: 3,
+          lineWidth: 0,
         },
       },
       true // Flag to calculate inertia from vertices
@@ -108,8 +107,7 @@ function createFallbackBlob(options: CreateBlobOptions): BlobBody {
     frictionAir: PHYSICS.FRICTION_AIR,
     render: {
       fillStyle: options.color ?? '#4ade80',
-      strokeStyle: '#1f2937',
-      lineWidth: 3,
+      lineWidth: 0,
     },
   });
   
