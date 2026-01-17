@@ -193,7 +193,7 @@ export default function Home() {
           onClick={handleFightNPC}
           className="w-full p-sm bg-gray-800 text-white rounded-md text-sm font-medium hover:bg-gray-700 transition-colors"
         >
-          Fight NPC
+          Offline Match
         </button>
       </div>
 
