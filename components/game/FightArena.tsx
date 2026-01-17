@@ -295,12 +295,60 @@ export default function FightArena() {
       {/* Stats display */}
       <div className="flex justify-between w-full max-w-[700px] mt-md px-sm text-white/70 text-sm">
         <div className="space-x-4">
-          <span><b>DMG:</b> {playerStats?.damage ?? '-'}</span>
-          <span><b>MASS:</b> {playerStats?.mass ?? '-'}</span>
+          <span>
+            <b>DMG:</b>{' '}
+            <span className={playerStats?.damage 
+              ? playerStats.damage >= 20 
+                ? 'text-red-500 font-bold' 
+                : playerStats.damage >= 15 
+                  ? 'text-orange-400 font-bold' 
+                  : 'text-white/70'
+              : ''
+            }>
+              {playerStats?.damage ?? '-'}
+            </span>
+          </span>
+          <span>
+            <b>MASS:</b>{' '}
+            <span className={playerStats?.mass 
+              ? playerStats.mass >= 20
+                ? 'text-red-500 font-bold' 
+                : playerStats.mass >= 15 
+                  ? 'text-orange-400 font-bold' 
+                  : 'text-white/70'
+              : ''
+            }>
+              {playerStats?.mass ?? '-'}
+            </span>
+          </span>
         </div>
         <div className="space-x-4">
-          <span><b>MASS:</b> {opponentStats?.mass ?? '-'}</span>
-          <span><b>DMG:</b> {opponentStats?.damage ?? '-'}</span>
+          <span>
+            <b>MASS:</b>{' '}
+            <span className={opponentStats?.mass 
+              ? opponentStats.mass >= 20 
+                ? 'text-red-500 font-bold' 
+                : opponentStats.mass >= 15 
+                  ? 'text-orange-400 font-bold' 
+                  : 'text-white/70'
+              : ''
+            }>
+              {opponentStats?.mass ?? '-'}
+            </span>
+          </span>
+          <span>
+            <b>DMG:</b>{' '}
+            <span className={opponentStats?.damage 
+              ? opponentStats.damage >= 20 
+                ? 'text-red-500 font-bold' 
+                : opponentStats.damage >= 15 
+                  ? 'text-orange-400 font-bold' 
+                  : 'text-white/70'
+              : ''
+            }>
+              {opponentStats?.damage ?? '-'}
+            </span>
+          </span>
         </div>
       </div>
     </div>
