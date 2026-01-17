@@ -1,100 +1,97 @@
 /**
  * Physics Engine Configuration
- * 
- * All tunable values in one place for easy balancing.
+ *
+ * All tunable values for game balancing.
  * Adjust these to change game feel without touching logic.
  */
 
-// ===========================================
-// PHYSICS
-// ===========================================
-
+/** Physics body properties */
 export const PHYSICS = {
   /** Zero gravity for top-down arena */
   GRAVITY: { x: 0, y: 0 },
-  
-  /** Body properties */
-  RESTITUTION: 1.0,       // Perfect bounce (no energy loss)
-  FRICTION: 0.01,         // Very low surface friction
-  FRICTION_AIR: 0.002,    // Almost no air resistance - keeps moving!
-  
+
+  /** Body material properties */
+  RESTITUTION: 1.0,
+  FRICTION: 0.01,
+  FRICTION_AIR: 0.002,
+
   /** Initial velocity on spawn */
-  INITIAL_SPEED: 5,       // Starting speed
-  INITIAL_SPIN: 0.05,     // Starting angular velocity
-  
+  INITIAL_SPEED: 5,
+  INITIAL_SPIN: 0.05,
+
   /** Vertex simplification */
   MIN_VERTICES: 3,
   MAX_VERTICES: 30,
-  SIMPLIFY_TOLERANCE: 5,  // Douglas-Peucker tolerance
-  
+  SIMPLIFY_TOLERANCE: 5,
+
   /** Scale factor: drawing canvas → arena */
   BLOB_SCALE: 0.5,
-};
+} as const;
 
-// ===========================================
-// STATS CALCULATION
-// ===========================================
-
+/** Blob stat calculation */
 export const STATS = {
-  /** Mass: area × multiplier */
+  /** Mass calculation */
   MASS_MULTIPLIER: 0.0008,
   MASS_MIN: 1,
   MASS_MAX: 50,
-  
-  /** Sharpness: angle threshold (degrees) */
-  SHARP_ANGLE_THRESHOLD: 90,   // Angles below this count as "sharp"
-  SPIKE_ANGLE_THRESHOLD: 60,   // Extra sharp = bonus damage
-  
+
+  /** Sharpness thresholds (degrees) */
+  SHARP_ANGLE_THRESHOLD: 90,
+  SPIKE_ANGLE_THRESHOLD: 60,
+
   /** Damage formula */
   BASE_DAMAGE: 5,
-  DAMAGE_PER_SHARP: 3,         // Per sharp corner
-  DAMAGE_PER_SPIKE: 5,         // Per extra-sharp corner
-  
+  DAMAGE_PER_SHARP: 3,
+  DAMAGE_PER_SPIKE: 5,
+
   /** HP formula */
   BASE_HP: 50,
-  HP_PER_AREA: 0.02,           // Larger = more HP
-  HP_PER_INK: 0.5,             // More ink used = more HP
+  HP_PER_AREA: 0.02,
+  HP_PER_INK: 0.5,
   HP_MIN: 30,
   HP_MAX: 200,
-  
-  /** Stability: affects tipping */
+
+  /** Stability */
   STABILITY_BASE: 100,
-};
+} as const;
 
-// ===========================================
-// COMBAT
-// ===========================================
-
+/** Combat damage calculation */
 export const COMBAT = {
-  /** Damage calculation */
-  MIN_IMPACT_VELOCITY: 2,      // Below this = no damage
-  VELOCITY_FACTOR: 0.3,        // How much speed affects damage (lowered)
-  MASS_FACTOR: 0.08,           // How much mass affects damage (lowered)
-  SHARPNESS_FACTOR: 0.25,      // How much sharpness affects damage (boosted!)
-};
+  MIN_IMPACT_VELOCITY: 2,
+  VELOCITY_FACTOR: 0.3,
+  MASS_FACTOR: 0.08,
+  SHARPNESS_FACTOR: 0.25,
+} as const;
 
-// ===========================================
-// ARENA
-// ===========================================
-
+/** Arena dimensions */
 export const ARENA = {
   WIDTH: 700,
   HEIGHT: 500,
   WALL_THICKNESS: 50,
   SPAWN_OFFSET: 200,
-};
+} as const;
 
-// ===========================================
-// POWER-UPS
-// ===========================================
-
+/** Power-up configuration */
 export const POWERUP = {
-  TRIGGER_HP_1: 160,           // First spawn when either blob hits this HP
-  TRIGGER_HP_2: 120,           // Second spawn when either blob hits this HP
-  TRIGGER_HP_3: 80,            // Third spawn when either blob hits this HP
-  TRIGGER_HP_4: 40,            // Fourth spawn when either blob hits this HP
-  RADIUS: 15,                  // Size of power-up dot
-  DOUBLE_DAMAGE_MULT: 2,       // Damage multiplier
-  HEAL_AMOUNT: 20,             // HP restored
-  REGEN_HEAL_AMOUNT: 3,        // HP per wall bounce
-};
+  /** HP thresholds that trigger spawns */
+  TRIGGER_HP_1: 160,
+  TRIGGER_HP_2: 120,
+  TRIGGER_HP_3: 80,
+  TRIGGER_HP_4: 40,
+
+  /** Visual */
+  RADIUS: 15,
+
+  /** Effect values */
+  DOUBLE_DAMAGE_MULT: 2,
+  HEAL_AMOUNT: 20,
+  REGEN_HEAL_AMOUNT: 2,
+} as const;
+
+/** Power-up render colors (hex) */
+export const POWERUP_COLORS = {
+  damage: '#ef4444',
+  heal: '#22c55e',
+  shield: '#3b82f6',
+  regen: '#f59e0b',
+} as const;

@@ -2,30 +2,37 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Matter from 'matter-js';
-import { Skull, HeartPlus, Shield, Zap } from 'lucide-react'
+import { Skull, HeartPlus, Shield, Zap } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
-import { ARENA, PHYSICS, POWERUP } from '@/lib/physics/constants';
+import { ARENA, PHYSICS, POWERUP, POWERUP_COLORS } from '@/lib/physics/constants';
 import { createBlobBody } from '@/lib/physics/createBlob';
 import { createArenaWalls, calculateCollisionDamage } from '@/lib/physics/combat';
 import { getRandomNPC } from '@/lib/npc';
-import type { BlobStats } from '@/types/game';
+import type { BlobStats, PowerUpType, ArenaPoweUp } from '@/types/game';
 import HealthBar from './HealthBar';
 import BattleResult from './BattleResult';
 
-type PowerUpType = 'damage' | 'heal' | 'shield' | 'regen';
+/** Power-up UI configuration */
+const POWERUP_CONFIG = {
+  damage: { bg: 'bg-red-500', border: 'border-red-700', icon: Skull, label: '2x DMG' },
+  heal: { bg: 'bg-green-500', border: 'border-green-700', icon: HeartPlus, label: '+20' },
+  shield: { bg: 'bg-blue-500', border: 'border-blue-700', icon: Shield, label: 'SHIELD' },
+  regen: { bg: 'bg-amber-500', border: 'border-amber-700', icon: Zap, label: 'REGEN' },
+} as const;
+
+/** Icon mapping for arena overlay */
+const POWERUP_ICONS = {
+  damage: Skull,
+  heal: HeartPlus,
+  shield: Shield,
+  regen: Zap,
+} as const;
 
 function PowerUpIndicator({ type }: { type: PowerUpType }) {
-  const config = {
-    damage: { bg: 'bg-red-500', border: 'border-red-700', icon: Skull, label: '2x DMG' },
-    heal: { bg: 'bg-green-500', border: 'border-green-700', icon: HeartPlus, label: '+20' },
-    shield: { bg: 'bg-blue-500', border: 'border-blue-700', icon: Shield, label: 'SHIELD' },
-    regen: { bg: 'bg-amber-500', border: 'border-amber-700', icon: Zap, label: 'REGEN' },
-  };
-  
-  const { bg, border, icon: Icon, label } = config[type];
-  
+  const { bg, border, icon: Icon, label } = POWERUP_CONFIG[type];
+
   return (
-    <div 
+    <div
       className={`
         inline-flex items-center gap-1 px-2 py-0.5
         ${bg} ${border}
@@ -47,17 +54,22 @@ function PowerUpIndicator({ type }: { type: PowerUpType }) {
 }
 
 export default function FightArena() {
+  // Matter.js refs
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<Matter.Engine | null>(null);
   const renderRef = useRef<Matter.Render | null>(null);
   const runnerRef = useRef<Matter.Runner | null>(null);
   const playerBodyRef = useRef<Matter.Body | null>(null);
   const opponentBodyRef = useRef<Matter.Body | null>(null);
-  const powerUpBodiesRef = useRef<Map<number, { body: Matter.Body; type: PowerUpType }>>(new Map());
+  const powerUpBodiesRef = useRef<Map<number, { body: Matter.Body; type: PowerUpType }>>(
+    new Map()
+  );
 
+  // Stats refs (for physics callbacks)
   const playerStatsRef = useRef<BlobStats | null>(null);
   const opponentStatsRef = useRef<BlobStats | null>(null);
 
+  // Power-up state refs (for physics callbacks)
   const triggeredThresholdsRef = useRef<Set<number>>(new Set());
   const playerDamageMultRef = useRef(1);
   const opponentDamageMultRef = useRef(1);
@@ -66,6 +78,7 @@ export default function FightArena() {
   const playerRegenRef = useRef(false);
   const opponentRegenRef = useRef(false);
 
+  // UI state
   const [playerHp, setPlayerHp] = useState(100);
   const [playerMaxHp, setPlayerMaxHp] = useState(100);
   const [opponentHp, setOpponentHp] = useState(100);
@@ -77,29 +90,22 @@ export default function FightArena() {
   const [opponentName, setOpponentName] = useState('Opponent');
 
   // Power-up UI state
-  const [powerUps, setPowerUps] = useState<Array<{ id: number; x: number; y: number; type: PowerUpType }>>([]);
+  const [powerUps, setPowerUps] = useState<ArenaPoweUp[]>([]);
   const [playerPowerUps, setPlayerPowerUps] = useState<PowerUpType[]>([]);
   const [opponentPowerUps, setOpponentPowerUps] = useState<PowerUpType[]>([]);
 
-  const { myStrokes, setWinner, reset, setPhase, clearStrokes, resetInk, setDrawingTimeLeft } = useGameStore();
+  const { myStrokes, setWinner, reset, setPhase, clearStrokes, resetInk, setDrawingTimeLeft } =
+    useGameStore();
 
+  /** Spawn a power-up at a random position */
   const spawnPowerUp = useCallback((threshold: number) => {
     if (!engineRef.current) return;
-
-    // Check if this specific threshold has already been triggered
     if (triggeredThresholdsRef.current.has(threshold)) return;
 
-    // Mark this threshold as triggered (can never trigger again)
     triggeredThresholdsRef.current.add(threshold);
+
     const types: PowerUpType[] = ['damage', 'heal', 'shield', 'regen'];
     const type = types[Math.floor(Math.random() * types.length)];
-
-    const colors: Record<PowerUpType, string> = {
-      damage: '#ef4444',  // red
-      heal: '#22c55e',    // green
-      shield: '#3b82f6',  // blue
-      regen: '#f59e0b',   // amber
-    };
 
     const x = 100 + Math.random() * (ARENA.WIDTH - 200);
     const y = 100 + Math.random() * (ARENA.HEIGHT - 200);
@@ -108,17 +114,16 @@ export default function FightArena() {
       label: 'powerup',
       isStatic: true,
       isSensor: true,
-      render: {
-        fillStyle: colors[type],
-      },
+      render: { fillStyle: POWERUP_COLORS[type] },
     });
 
     const bodyId = powerUp.id;
     powerUpBodiesRef.current.set(bodyId, { body: powerUp, type });
     Matter.Composite.add(engineRef.current.world, powerUp);
-    setPowerUps(prev => [...prev, { id: bodyId, x, y, type }]);
+    setPowerUps((prev) => [...prev, { id: bodyId, x, y, type }]);
   }, []);
 
+  /** Clean up Matter.js resources */
   const cleanup = useCallback(() => {
     if (runnerRef.current) Matter.Runner.stop(runnerRef.current);
     if (renderRef.current) {
@@ -127,6 +132,7 @@ export default function FightArena() {
     }
     if (engineRef.current) Matter.Engine.clear(engineRef.current);
 
+    // Reset all refs
     engineRef.current = null;
     renderRef.current = null;
     runnerRef.current = null;
@@ -144,6 +150,18 @@ export default function FightArena() {
     opponentRegenRef.current = false;
   }, []);
 
+  /** Check HP thresholds and spawn power-ups */
+  const checkPowerUpSpawn = useCallback(
+    (newHp: number) => {
+      if (newHp <= POWERUP.TRIGGER_HP_4) spawnPowerUp(POWERUP.TRIGGER_HP_4);
+      else if (newHp <= POWERUP.TRIGGER_HP_3) spawnPowerUp(POWERUP.TRIGGER_HP_3);
+      else if (newHp <= POWERUP.TRIGGER_HP_2) spawnPowerUp(POWERUP.TRIGGER_HP_2);
+      else if (newHp <= POWERUP.TRIGGER_HP_1) spawnPowerUp(POWERUP.TRIGGER_HP_1);
+    },
+    [spawnPowerUp]
+  );
+
+  /** Initialize physics engine and game state */
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -166,6 +184,7 @@ export default function FightArena() {
 
     Matter.Composite.add(engine.world, createArenaWalls());
 
+    // Create player blob
     const playerBlob = createBlobBody(myStrokes, {
       x: ARENA.SPAWN_OFFSET,
       y: ARENA.HEIGHT / 2,
@@ -193,6 +212,7 @@ export default function FightArena() {
       Matter.Body.setAngularVelocity(playerBlob.body, PHYSICS.INITIAL_SPIN);
     }
 
+    // Create opponent blob
     const npc = getRandomNPC();
     const opponentBlob = createBlobBody(npc.strokes, {
       x: ARENA.WIDTH - ARENA.SPAWN_OFFSET,
@@ -222,55 +242,60 @@ export default function FightArena() {
       Matter.Body.setAngularVelocity(opponentBlob.body, -PHYSICS.INITIAL_SPIN);
     }
 
+    // Collision handler
     Matter.Events.on(engine, 'collisionStart', (event) => {
       for (const pair of event.pairs) {
         const { bodyA, bodyB } = pair;
         const labels = [bodyA.label, bodyB.label];
 
+        // Power-up collision
         if (labels.includes('powerup')) {
-          const picker = labels.includes('player') ? 'player' : labels.includes('opponent') ? 'opponent' : null;
+          const picker = labels.includes('player')
+            ? 'player'
+            : labels.includes('opponent')
+              ? 'opponent'
+              : null;
           const powerUpBody = bodyA.label === 'powerup' ? bodyA : bodyB;
-          
+
           if (picker) {
             const powerUpData = powerUpBodiesRef.current.get(powerUpBody.id);
             if (powerUpData) {
-              // Remove from world and tracking
               Matter.Composite.remove(engine.world, powerUpData.body);
               powerUpBodiesRef.current.delete(powerUpBody.id);
-              setPowerUps(prev => prev.filter(p => p.id !== powerUpBody.id));
+              setPowerUps((prev) => prev.filter((p) => p.id !== powerUpBody.id));
 
               const type = powerUpData.type;
               if (type === 'damage') {
                 if (picker === 'player') {
                   playerDamageMultRef.current *= POWERUP.DOUBLE_DAMAGE_MULT;
-                  setPlayerPowerUps(prev => [...prev, 'damage']);
+                  setPlayerPowerUps((prev) => [...prev, 'damage']);
                 } else {
                   opponentDamageMultRef.current *= POWERUP.DOUBLE_DAMAGE_MULT;
-                  setOpponentPowerUps(prev => [...prev, 'damage']);
+                  setOpponentPowerUps((prev) => [...prev, 'damage']);
                 }
               } else if (type === 'heal') {
                 if (picker === 'player') {
-                  setPlayerHp(prev => Math.min(prev + POWERUP.HEAL_AMOUNT, playerMaxHp));
-                  setPlayerPowerUps(prev => [...prev, 'heal']);
+                  setPlayerHp((prev) => Math.min(prev + POWERUP.HEAL_AMOUNT, playerMaxHp));
+                  setPlayerPowerUps((prev) => [...prev, 'heal']);
                 } else {
-                  setOpponentHp(prev => Math.min(prev + POWERUP.HEAL_AMOUNT, opponentMaxHp));
-                  setOpponentPowerUps(prev => [...prev, 'heal']);
+                  setOpponentHp((prev) => Math.min(prev + POWERUP.HEAL_AMOUNT, opponentMaxHp));
+                  setOpponentPowerUps((prev) => [...prev, 'heal']);
                 }
               } else if (type === 'shield') {
                 if (picker === 'player') {
                   playerShieldRef.current = true;
-                  setPlayerPowerUps(prev => [...prev, 'shield']);
+                  setPlayerPowerUps((prev) => [...prev, 'shield']);
                 } else {
                   opponentShieldRef.current = true;
-                  setOpponentPowerUps(prev => [...prev, 'shield']);
+                  setOpponentPowerUps((prev) => [...prev, 'shield']);
                 }
               } else if (type === 'regen') {
                 if (picker === 'player') {
                   playerRegenRef.current = true;
-                  setPlayerPowerUps(prev => [...prev, 'regen']);
+                  setPlayerPowerUps((prev) => [...prev, 'regen']);
                 } else {
                   opponentRegenRef.current = true;
-                  setOpponentPowerUps(prev => [...prev, 'regen']);
+                  setOpponentPowerUps((prev) => [...prev, 'regen']);
                 }
               }
             }
@@ -281,14 +306,15 @@ export default function FightArena() {
         // Wall collision - regen healing
         if (labels.includes('wall')) {
           if (labels.includes('player') && playerRegenRef.current) {
-            setPlayerHp(prev => Math.min(prev + POWERUP.REGEN_HEAL_AMOUNT, playerMaxHp));
+            setPlayerHp((prev) => Math.min(prev + POWERUP.REGEN_HEAL_AMOUNT, playerMaxHp));
           }
           if (labels.includes('opponent') && opponentRegenRef.current) {
-            setOpponentHp(prev => Math.min(prev + POWERUP.REGEN_HEAL_AMOUNT, opponentMaxHp));
+            setOpponentHp((prev) => Math.min(prev + POWERUP.REGEN_HEAL_AMOUNT, opponentMaxHp));
           }
           continue;
         }
 
+        // Blob vs blob collision
         const pStats = playerStatsRef.current;
         const oStats = opponentStatsRef.current;
         if (!pStats || !oStats) continue;
@@ -302,38 +328,36 @@ export default function FightArena() {
           const playerBody = isPlayerA ? bodyA : bodyB;
           const opponentBody = isOpponentA ? bodyA : bodyB;
 
-          let dmgToOpponent = calculateCollisionDamage(playerBody, pStats, opponentBody) * playerDamageMultRef.current;
-          let dmgToPlayer = calculateCollisionDamage(opponentBody, oStats, playerBody) * opponentDamageMultRef.current;
+          let dmgToOpponent =
+            calculateCollisionDamage(playerBody, pStats, opponentBody) *
+            playerDamageMultRef.current;
+          let dmgToPlayer =
+            calculateCollisionDamage(opponentBody, oStats, playerBody) *
+            opponentDamageMultRef.current;
 
           // Shield blocks damage
           if (opponentShieldRef.current && dmgToOpponent > 0) {
             opponentShieldRef.current = false;
-            setOpponentPowerUps(prev => prev.filter(p => p !== 'shield'));
+            setOpponentPowerUps((prev) => prev.filter((p) => p !== 'shield'));
             dmgToOpponent = 0;
           }
           if (playerShieldRef.current && dmgToPlayer > 0) {
             playerShieldRef.current = false;
-            setPlayerPowerUps(prev => prev.filter(p => p !== 'shield'));
+            setPlayerPowerUps((prev) => prev.filter((p) => p !== 'shield'));
             dmgToPlayer = 0;
           }
 
           if (dmgToOpponent > 0) {
-            setOpponentHp(prev => {
+            setOpponentHp((prev) => {
               const newHp = Math.max(0, prev - dmgToOpponent);
-              if (newHp <= POWERUP.TRIGGER_HP_4) spawnPowerUp(POWERUP.TRIGGER_HP_4);
-              else if (newHp <= POWERUP.TRIGGER_HP_3) spawnPowerUp(POWERUP.TRIGGER_HP_3);
-              else if (newHp <= POWERUP.TRIGGER_HP_2) spawnPowerUp(POWERUP.TRIGGER_HP_2);
-              else if (newHp <= POWERUP.TRIGGER_HP_1) spawnPowerUp(POWERUP.TRIGGER_HP_1);
+              checkPowerUpSpawn(newHp);
               return newHp;
             });
           }
           if (dmgToPlayer > 0) {
-            setPlayerHp(prev => {
+            setPlayerHp((prev) => {
               const newHp = Math.max(0, prev - dmgToPlayer);
-              if (newHp <= POWERUP.TRIGGER_HP_4) spawnPowerUp(POWERUP.TRIGGER_HP_4);
-              else if (newHp <= POWERUP.TRIGGER_HP_3) spawnPowerUp(POWERUP.TRIGGER_HP_3);
-              else if (newHp <= POWERUP.TRIGGER_HP_2) spawnPowerUp(POWERUP.TRIGGER_HP_2);
-              else if (newHp <= POWERUP.TRIGGER_HP_1) spawnPowerUp(POWERUP.TRIGGER_HP_1);
+              checkPowerUpSpawn(newHp);
               return newHp;
             });
           }
@@ -341,6 +365,7 @@ export default function FightArena() {
       }
     });
 
+    // Speed normalization
     Matter.Events.on(engine, 'afterUpdate', () => {
       const normalizeSpeed = (body: Matter.Body | null) => {
         if (!body) return;
@@ -361,8 +386,9 @@ export default function FightArena() {
     Matter.Render.run(render);
 
     return cleanup;
-  }, [myStrokes, cleanup, playerMaxHp, opponentMaxHp, spawnPowerUp]);
+  }, [myStrokes, cleanup, playerMaxHp, opponentMaxHp, checkPowerUpSpawn]);
 
+  /** Handle battle end */
   useEffect(() => {
     if (battleOver) return;
 
@@ -420,15 +446,12 @@ export default function FightArena() {
         <HealthBar current={opponentHp} max={opponentMaxHp} label={opponentName} />
       </div>
 
-      {/* Arena with power-up icon overlay */}
+      {/* Arena with power-up overlays */}
       <div className="relative">
         <div ref={containerRef} style={{ width: ARENA.WIDTH, height: ARENA.HEIGHT }} />
 
-        {/* Power-up icon overlays - centered on each power-up */}
-        {/* +4 accounts for the canvas border */}
         {powerUps.map((powerUp) => {
-          const IconMap = { damage: Skull, heal: HeartPlus, shield: Shield, regen: Zap };
-          const Icon = IconMap[powerUp.type];
+          const Icon = POWERUP_ICONS[powerUp.type];
           return (
             <div
               key={powerUp.id}
@@ -449,10 +472,15 @@ export default function FightArena() {
         <BattleResult isVictory={isVictory} onRematch={handleRematch} onMainMenu={handleMainMenu} />
       )}
 
+      {/* Stats bar */}
       <div className="flex justify-between w-full max-w-[700px] mt-md px-sm text-white/70 text-sm min-h-[24px]">
         <div className="flex items-center gap-4">
-          <span><b>DMG:</b> {playerStats?.damage ?? '-'}</span>
-          <span><b>MASS:</b> {playerStats?.mass ?? '-'}</span>
+          <span>
+            <b>DMG:</b> {playerStats?.damage ?? '-'}
+          </span>
+          <span>
+            <b>MASS:</b> {playerStats?.mass ?? '-'}
+          </span>
           <div className="flex items-center gap-2">
             {playerPowerUps.map((powerUp, index) => (
               <PowerUpIndicator key={`${powerUp}-${index}`} type={powerUp} />
@@ -465,8 +493,12 @@ export default function FightArena() {
               <PowerUpIndicator key={`${powerUp}-${index}`} type={powerUp} />
             ))}
           </div>
-          <span><b>MASS:</b> {opponentStats?.mass ?? '-'}</span>
-          <span><b>DMG:</b> {opponentStats?.damage ?? '-'}</span>
+          <span>
+            <b>MASS:</b> {opponentStats?.mass ?? '-'}
+          </span>
+          <span>
+            <b>DMG:</b> {opponentStats?.damage ?? '-'}
+          </span>
         </div>
       </div>
     </div>
