@@ -124,7 +124,7 @@ export default function AuthForm() {
           type="button"
           onClick={() => handleOAuthSignIn('google')}
           disabled={isLoading}
-          className="w-full flex items-center justify-center gap-sm p-sm bg-white text-gray-700 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm font-medium"
+          className="w-full flex items-center justify-center gap-sm p-sm bg-white text-gray-700 rounded-md hover:bg-gray-100 transition-colors disabled:opacity-50 text-sm font-medium cursor-pointer"
         >
           <Image src="/google.svg" alt="" width={16} height={16} />
           Sign in with Google
@@ -134,7 +134,7 @@ export default function AuthForm() {
           type="button"
           onClick={() => handleOAuthSignIn('github')}
           disabled={isLoading}
-          className="w-full flex items-center justify-center gap-sm p-sm bg-gray-900 text-white rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50 text-sm font-medium"
+          className="w-full flex items-center justify-center gap-sm p-sm bg-gray-900 text-white rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50 text-sm font-medium cursor-pointer"
         >
           <Image src="/github.svg" alt="" width={16} height={16} className="brightness-0 invert" />
           Sign in with GitHub
@@ -144,7 +144,7 @@ export default function AuthForm() {
       {/* divider */}
       <div className="flex items-center gap-sm mb-md">
         <div className="flex-1 border-t border-white/20" />
-        <span className="text-xs opacity-80">or continue with email</span>
+        <span className="text-xs">or continue with email & password</span>
         <div className="flex-1 border-t border-white/20" />
       </div>
 
@@ -184,7 +184,7 @@ export default function AuthForm() {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-700 hover:text-gray-800 px-1"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-700 hover:text-gray-800 px-1 cursor-pointer"
             >
               {showPassword ? 'Hide' : 'Show'}
             </button>
@@ -210,9 +210,10 @@ export default function AuthForm() {
         )}
 
         {/* forgot password (login only) */}
+        {/* todo: add forgot password functionality */}
         {!isSignUp && (
           <div className="text-right">
-            <a href="#" className="text-xs text-blue-400 hover:text-blue-300">
+            <a href="#" className="text-xs text-gray-100 hover:text-white cursor-pointer hover:underline">
               Forgot Password?
             </a>
           </div>
@@ -222,7 +223,7 @@ export default function AuthForm() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full p-sm bg-gray-900 text-white rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50 text-sm font-medium"
+          className="w-full p-sm bg-gray-900 text-white rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50 text-sm font-medium cursor-pointer"
         >
           {isLoading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Login'}
         </button>
@@ -235,7 +236,7 @@ export default function AuthForm() {
           type="button"
           onClick={toggleMode}
           disabled={isLoading}
-          className="text-blue-400 hover:text-blue-300 font-medium disabled:opacity-50"
+          className="text-gray-100 hover:text-white font-medium disabled:opacity-50 cursor-pointer hover:underline"
         >
           {isSignUp ? 'Login' : 'Sign Up'}
         </button>
