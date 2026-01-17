@@ -55,7 +55,7 @@ export const STATS = {
   HP_PER_AREA: 0.02,           // Larger = more HP
   HP_PER_INK: 0.5,             // More ink used = more HP
   HP_MIN: 30,
-  HP_MAX: 100,
+  HP_MAX: 200,
   
   /** Stability: affects tipping */
   STABILITY_BASE: 100,
@@ -89,9 +89,12 @@ export const ARENA = {
 // ===========================================
 
 export const POWERUP = {
-  TRIGGER_HP_1: 60,            // First spawn when either blob hits this HP
-  TRIGGER_HP_2: 30,            // Second spawn when either blob hits this HP
+  TRIGGER_HP_1: 160,           // First spawn when either blob hits this HP
+  TRIGGER_HP_2: 120,           // Second spawn when either blob hits this HP
+  TRIGGER_HP_3: 80,            // Third spawn when either blob hits this HP
+  TRIGGER_HP_4: 40,            // Fourth spawn when either blob hits this HP
   RADIUS: 15,                  // Size of power-up dot
   DOUBLE_DAMAGE_MULT: 2,       // Damage multiplier
   HEAL_AMOUNT: 20,             // HP restored
+  REGEN_HEAL_AMOUNT: 2,        // HP per wall bounce
 };
