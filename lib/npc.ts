@@ -1,10 +1,7 @@
 import type { Stroke, Point } from '@/types/game';
 
-export type Difficulty = 'easy' | 'medium' | 'hard';
-
 export interface NPCBlob {
   name: string;
-  difficulty: Difficulty;
   color: string;
   strokes: Stroke[];
 }
@@ -58,8 +55,8 @@ function generateTriangle(cx: number, cy: number, size: number = 160): Point[] {
  * Generate a star - 5 sharp points, high damage
  */
 function generateStar(cx: number, cy: number, numPoints: number = 5): Point[] {
-  const outerRadius = 90;
-  const innerRadius = 40;
+  const outerRadius = 180; // Doubled from 90
+  const innerRadius = 80; // Doubled from 40
   const starPoints: Point[] = [];
   
   for (let i = 0; i < numPoints * 2; i++) {
@@ -78,8 +75,8 @@ function generateStar(cx: number, cy: number, numPoints: number = 5): Point[] {
  * Generate a spike ball - lots of sharp points, glass cannon
  */
 function generateSpikeBall(cx: number, cy: number, spikes: number = 8): Point[] {
-  const baseRadius = 45;
-  const spikeLength = 50;
+  const baseRadius = 90; // Doubled from 45
+  const spikeLength = 100; // Doubled from 50
   const points: Point[] = [];
 
   for (let i = 0; i < spikes; i++) {
@@ -108,8 +105,8 @@ function generateSpikeBall(cx: number, cy: number, spikes: number = 8): Point[] 
  * Generate an organic blob shape (wobbly circle)
  */
 function generateOrganicBlob(cx: number, cy: number, segments: number = 20): Point[] {
-  const avgRadius = 75;
-  const wobble = 20;
+  const avgRadius = 150; // Doubled from 75
+  const wobble = 40; // Doubled from 20
   const points: Point[] = [];
   const seed = Math.random() * 1000;
 
@@ -129,8 +126,8 @@ function generateOrganicBlob(cx: number, cy: number, segments: number = 20): Poi
  * Generate a diamond (rotated square) - 4 sharp corners
  */
 function generateDiamond(cx: number, cy: number): Point[] {
-  const width = 60;
-  const height = 100;
+  const width = 120; // Doubled from 60
+  const height = 200; // Doubled from 100
   return [
     { x: cx, y: cy - height / 2 },
     { x: cx + width / 2, y: cy },
@@ -151,72 +148,50 @@ function pointsToStroke(points: Point[]): Stroke {
 }
 
 // Pre-defined NPC blobs - sized to match typical player drawings
+// Numbers: (200, 200) = center coordinates, third number = shape-specific size (doubled)
 const NPC_BLOBS: NPCBlob[] = [
-  // Easy - round, high HP, low damage
   {
     name: 'Blobby',
-    difficulty: 'easy',
     color: '#60a5fa',
-    strokes: [pointsToStroke(generateCircle(200, 200, 70))],
+    strokes: [pointsToStroke(generateCircle(200, 200, 140))], // radius = 140 (was 70)
   },
   {
     name: 'Boxxy',
-    difficulty: 'easy',
     color: '#a78bfa',
-    strokes: [pointsToStroke(generateSquare(200, 200, 120))],
+    strokes: [pointsToStroke(generateSquare(200, 200, 180))], // side length = 180 (reduced from 240 for balance)
   },
-
-  // Medium - balanced shapes
   {
     name: 'Triforce',
-    difficulty: 'medium',
     color: '#fbbf24',
-    strokes: [pointsToStroke(generateTriangle(200, 200, 130))],
+    strokes: [pointsToStroke(generateTriangle(200, 200, 260))], // side length = 260 (was 130)
   },
   {
     name: 'Goopy',
-    difficulty: 'medium',
-    color: '#34d399',
-    strokes: [pointsToStroke(generateOrganicBlob(200, 200))],
+    color: '#FF2ED5',
+    strokes: [pointsToStroke(generateOrganicBlob(200, 200))], // uses hardcoded size (will update function)
   },
   {
     name: 'Gem',
-    difficulty: 'medium',
     color: '#06b6d4',
-    strokes: [pointsToStroke(generateDiamond(200, 200))],
+    strokes: [pointsToStroke(generateDiamond(200, 200))], // uses hardcoded size (will update function)
   },
-
-  // Hard - sharp, high damage
   {
     name: 'Starro',
-    difficulty: 'hard',
     color: '#f472b6',
-    strokes: [pointsToStroke(generateStar(200, 200, 5))],
+    strokes: [pointsToStroke(generateStar(200, 200, 5))], // uses hardcoded size (will update function)
   },
   {
     name: 'Spike Lord',
-    difficulty: 'hard',
     color: '#ef4444',
-    strokes: [pointsToStroke(generateSpikeBall(200, 200, 8))],
+    strokes: [pointsToStroke(generateSpikeBall(200, 200, 8))], // uses hardcoded size (will update function)
   },
 ];
 
 /**
- * Get all NPCs for a difficulty
+ * Get a random NPC from all available NPCs
  */
-export function getNPCsByDifficulty(difficulty: Difficulty): NPCBlob[] {
-  return NPC_BLOBS.filter((npc) => npc.difficulty === difficulty);
-}
-
-/**
- * Get a random NPC for a difficulty
- */
-export function getRandomNPC(difficulty: Difficulty): NPCBlob {
-  const npcs = getNPCsByDifficulty(difficulty);
-  if (npcs.length === 0) {
-    return NPC_BLOBS[0];
-  }
-  return npcs[Math.floor(Math.random() * npcs.length)];
+export function getRandomNPC(): NPCBlob {
+  return NPC_BLOBS[Math.floor(Math.random() * NPC_BLOBS.length)];
 }
 
 /**
