@@ -505,18 +505,20 @@ export default function FightArena() {
   // Handle server-initiated rematch (both players agreed)
   useEffect(() => {
     if (isMultiplayer && partyState.roomState?.phase === 'drawing' && battleOver) {
-      // Both players agreed to rematch - reset and go to drawing
-      cleanup();
-      setBattleOver(false);
-      setWinner(null);
-      setPlayerPowerUps([]);
-      setOpponentPowerUps([]);
-      setPowerUps([]);
-      clearStrokes();
-      resetInk();
-      setDrawingTimeLeft(15);
-      setBattleSeed(null);
-      setPhase('drawing');
+      // Schedule state updates after effect completes to avoid cascading renders
+      setTimeout(() => {
+        cleanup();
+        setBattleOver(false);
+        setWinner(null);
+        setPlayerPowerUps([]);
+        setOpponentPowerUps([]);
+        setPowerUps([]);
+        clearStrokes();
+        resetInk();
+        setDrawingTimeLeft(15);
+        setBattleSeed(null);
+        setPhase('drawing');
+      }, 0);
     }
   }, [isMultiplayer, partyState.roomState?.phase, battleOver, cleanup, clearStrokes, resetInk, setDrawingTimeLeft, setBattleSeed, setPhase, setWinner]);
 
