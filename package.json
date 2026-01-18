@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
+    "dev:partykit": "partykit dev",
+    "dev:all": "concurrently \"pnpm dev\" \"pnpm dev:partykit\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -14,6 +16,7 @@
     "matter-js": "^0.20.0",
     "next": "16.1.2",
     "partykit": "^0.0.115",
+    "partysocket": "^1.1.10",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "zustand": "^5.0.10"
@@ -24,6 +27,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.2",
     "tailwindcss": "^4",

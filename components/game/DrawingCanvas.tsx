@@ -1,8 +1,9 @@
 'use client';
 
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, Loader2 } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
+import { usePartyKitContext } from '@/contexts/PartyKitContext';
 import { getMousePos, getTouchPos, clearCanvas } from '@/lib/drawing/canvas';
 import type { Point, Stroke } from '@/types/game';
 import Button from '@/components/ui/Button';
@@ -28,6 +29,21 @@ export default function DrawingCanvas() {
     reset,
     setPhase,
   } = useGameStore();
+
+  const [partyState, partyActions] = usePartyKitContext();
+
+  // Derive opponent ready status for multiplayer
+  const isMultiplayer = gameMode === 'multiplayer';
+  const opponentReady = isMultiplayer
+    ? partyState.role === 'host'
+      ? partyState.roomState?.guestReady
+      : partyState.roomState?.hostReady
+    : false;
+  const opponentName = isMultiplayer
+    ? partyState.role === 'host'
+      ? partyState.roomState?.guestName
+      : partyState.roomState?.hostName
+    : null;
 
   // Sync liveInk with store when not drawing
   useEffect(() => {
@@ -101,13 +117,17 @@ export default function DrawingCanvas() {
 
   // Auto-ready when timer hits 0
   useEffect(() => {
-    if (drawingTimeLeft === 0 && !isReady && gameMode === 'npc') {
+    if (drawingTimeLeft === 0 && !isReady) {
       requestAnimationFrame(() => {
         setIsReady(true);
-        setPhase('fighting');
+        if (gameMode === 'npc') {
+          setPhase('fighting');
+        } else if (gameMode === 'multiplayer') {
+          partyActions.sendReady(myStrokes);
+        }
       });
     }
-  }, [drawingTimeLeft, isReady, gameMode, setPhase]);
+  }, [drawingTimeLeft, isReady, gameMode, setPhase, partyActions, myStrokes]);
 
   // Start drawing
   const startDrawing = (point: Point) => {
@@ -198,6 +218,8 @@ export default function DrawingCanvas() {
 
     if (gameMode === 'npc') {
       setPhase('fighting');
+    } else if (gameMode === 'multiplayer') {
+      partyActions.sendReady(myStrokes);
     }
   };
 
@@ -304,16 +326,37 @@ export default function DrawingCanvas() {
         </div>
       </div>
 
-      {/* Ready button */}
-      <Button
-        onClick={handleReady}
-        disabled={isReady}
-        variant={isReady ? 'success' : 'primary'}
-        size="lg"
-        icon={isReady ? <Check className="w-5 h-5" /> : undefined}
-      >
-        {isReady ? 'Ready!' : 'Ready'}
-      </Button>
+      {/* Ready section */}
+      <div className="flex flex-col items-center gap-2">
+        <Button
+          onClick={handleReady}
+          disabled={isReady}
+          variant={isReady ? 'success' : 'primary'}
+          size="lg"
+          icon={isReady ? <Check className="w-5 h-5" /> : undefined}
+        >
+          {isReady ? 'Ready!' : 'Ready'}
+        </Button>
+
+        {/* Opponent status - multiplayer only */}
+        {isMultiplayer && (
+          <div className="flex items-center gap-2 text-sm">
+            {opponentReady ? (
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-green-500/20 border border-green-500/50 rounded text-green-400">
+                <Check className="w-3.5 h-3.5" />
+                <span className="font-bold">{opponentName || 'Opponent'}</span>
+                <span>is ready!</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-white/10 border border-white/20 rounded text-white/60">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Waiting for</span>
+                <span className="font-bold">{opponentName || 'opponent'}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
       </div>
     </div>
   );

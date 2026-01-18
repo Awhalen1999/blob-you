@@ -1,0 +1,5 @@
+{
+  "name": "blob-you",
+  "main": "partykit/server.ts",
+  "compatibilityDate": "2026-01-18"
+}
