@@ -235,7 +235,7 @@ export default function Home() {
           >
             {myLobbyReady ? (opponentLobbyReady ? 'Starting...' : 'Waiting for opponent...') : hasOpponent ? 'Ready!' : 'Waiting...'}
           </Button>
-          <Button onClick={handleBack} variant="secondary" size="lg" fullWidth>
+          <Button onClick={handleBack} variant="secondary" size="lg" fullWidth icon={<LogOut className="w-4 h-4" />}>
             Leave Room
           </Button>
         </div>
