@@ -11,6 +11,7 @@ import { usePartyKitContext } from '@/contexts/PartyKitContext';
 import DrawingCanvas from '@/components/game/DrawingCanvas';
 import FightArena from '@/components/game/FightArena';
 import Button from '@/components/ui/Button';
+import { PartyStatus } from '@/components/ui/PartyStatus';
 
 type MenuView = 'main' | 'lobby' | 'join';
 
@@ -77,12 +78,22 @@ export default function Home() {
 
   // Drawing phase
   if (phase === 'drawing') {
-    return <DrawingCanvas />;
+    return (
+      <>
+        <DrawingCanvas />
+        <PartyStatus />
+      </>
+    );
   }
 
   // Fighting phase
   if (phase === 'fighting') {
-    return <FightArena />;
+    return (
+      <>
+        <FightArena />
+        <PartyStatus />
+      </>
+    );
   }
 
   const handleGenerateCode = () => {
