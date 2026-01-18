@@ -29,6 +29,15 @@ type PartyKitContextValue = [PartyKitState, PartyKitActions];
 
 const PartyKitContext = createContext<PartyKitContextValue | null>(null);
 
+function log(direction: 'send' | 'recv', type: string, data?: Record<string, unknown>) {
+  const arrow = direction === 'send' ? '→' : '←';
+  if (data) {
+    console.log(`[WS ${arrow}] ${type}`, data);
+  } else {
+    console.log(`[WS ${arrow}] ${type}`);
+  }
+}
+
 export function PartyKitProvider({ children }: { children: ReactNode }) {
   const socketRef = useRef<PartySocket | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
@@ -37,16 +46,16 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [battleSeed, setBattleSeed] = useState<number | null>(null);
 
-  /** Send a typed message to the server */
   const send = useCallback((message: ClientMessage) => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
+      log('send', message.type);
       socketRef.current.send(JSON.stringify(message));
     }
   }, []);
 
-  /** Handle incoming server messages */
   const handleMessage = useCallback((event: MessageEvent) => {
     const msg = JSON.parse(event.data) as ServerMessage;
+    log('recv', msg.type);
 
     switch (msg.type) {
       case 'welcome':
@@ -58,51 +67,41 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
       case 'player_joined':
         setRoomState((prev) => {
           if (!prev) return prev;
-          if (msg.role === 'host') {
-            return { ...prev, hostName: msg.name, hostId: 'connected' };
-          } else {
-            return { ...prev, guestName: msg.name, guestId: 'connected' };
-          }
+          return msg.role === 'host'
+            ? { ...prev, hostName: msg.name, hostId: 'connected' }
+            : { ...prev, guestName: msg.name, guestId: 'connected' };
         });
         break;
 
       case 'player_left':
         setRoomState((prev) => {
           if (!prev) return prev;
-          if (msg.role === 'host') {
-            return { ...prev, hostId: null, hostName: null, hostReady: false, hostStrokes: null };
-          } else {
-            return { ...prev, guestId: null, guestName: null, guestReady: false, guestStrokes: null };
-          }
+          return msg.role === 'host'
+            ? { ...prev, hostId: null, hostName: null, hostReady: false, hostStrokes: null }
+            : { ...prev, guestId: null, guestName: null, guestReady: false, guestStrokes: null };
         });
         break;
 
       case 'player_ready':
         setRoomState((prev) => {
           if (!prev) return prev;
-          if (msg.role === 'host') {
-            return { ...prev, hostReady: true };
-          } else {
-            return { ...prev, guestReady: true };
-          }
+          return msg.role === 'host'
+            ? { ...prev, hostReady: true }
+            : { ...prev, guestReady: true };
         });
         break;
 
       case 'player_lobby_ready':
         setRoomState((prev) => {
           if (!prev) return prev;
-          if (msg.role === 'host') {
-            return { ...prev, hostLobbyReady: true };
-          } else {
-            return { ...prev, guestLobbyReady: true };
-          }
+          return msg.role === 'host'
+            ? { ...prev, hostLobbyReady: true }
+            : { ...prev, guestLobbyReady: true };
         });
         break;
 
       case 'drawing_start':
-        setRoomState((prev) =>
-          prev ? { ...prev, phase: 'drawing' } : prev
-        );
+        setRoomState((prev) => prev ? { ...prev, phase: 'drawing' } : prev);
         break;
 
       case 'battle_start':
@@ -147,14 +146,13 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  /** Connect to a room */
   const connect = useCallback(
     (roomCode: string, playerName: string) => {
-      // Clean up existing connection
       if (socketRef.current) {
         socketRef.current.close();
       }
 
+      log('send', 'connecting', { room: roomCode });
       setStatus('connecting');
       setError(null);
 
@@ -164,18 +162,21 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
       });
 
       socket.addEventListener('open', () => {
+        log('recv', 'connected');
         send({ type: 'join', name: playerName });
       });
 
       socket.addEventListener('message', handleMessage);
 
       socket.addEventListener('close', () => {
+        log('recv', 'disconnected');
         setStatus('disconnected');
         setRole(null);
         setRoomState(null);
       });
 
       socket.addEventListener('error', () => {
+        log('recv', 'error');
         setError('Connection failed');
         setStatus('error');
       });
@@ -185,9 +186,9 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
     [send, handleMessage]
   );
 
-  /** Disconnect from the room */
   const disconnect = useCallback(() => {
     if (socketRef.current) {
+      log('send', 'disconnect');
       socketRef.current.close();
       socketRef.current = null;
     }
@@ -198,12 +199,10 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
     setBattleSeed(null);
   }, []);
 
-  /** Send lobby ready (before drawing starts) */
   const sendLobbyReady = useCallback(() => {
     send({ type: 'lobby_ready' });
   }, [send]);
 
-  /** Send ready with strokes */
   const sendReady = useCallback(
     (strokes: Stroke[]) => {
       send({ type: 'ready', strokes });
@@ -211,12 +210,10 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
     [send]
   );
 
-  /** Send rematch request */
   const sendRematch = useCallback(() => {
     send({ type: 'rematch' });
   }, [send]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (socketRef.current) {

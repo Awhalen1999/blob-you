@@ -223,9 +223,7 @@ export default function DrawingCanvas() {
     }
   };
 
-  // Back button - exit battle/drawing session
   const handleBack = () => {
-    console.log('battle ended');
     reset();
   };
 

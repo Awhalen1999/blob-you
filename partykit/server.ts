@@ -2,7 +2,6 @@ import type * as Party from 'partykit/server';
 import type { Stroke } from '@/types/game';
 import type { ClientMessage, ServerMessage, RoomState, PlayerRole } from './types';
 
-/** Initial empty room state */
 function createInitialState(): RoomState {
   return {
     hostId: null,
@@ -26,12 +25,21 @@ export default class BlobRoom implements Party.Server {
     this.state = createInitialState();
   }
 
-  /** Send a message to a specific connection */
+  private log(action: string, data?: Record<string, unknown>) {
+    const entry = {
+      room: this.room.id,
+      action,
+      phase: this.state.phase,
+      players: [this.state.hostId, this.state.guestId].filter(Boolean).length,
+      ...data,
+    };
+    console.log(`[WS] ${JSON.stringify(entry)}`);
+  }
+
   private send(conn: Party.Connection, message: ServerMessage) {
     conn.send(JSON.stringify(message));
   }
 
-  /** Broadcast a message to all connections */
   private broadcast(message: ServerMessage, exclude?: string) {
     const data = JSON.stringify(message);
     for (const conn of this.room.getConnections()) {
@@ -41,22 +49,20 @@ export default class BlobRoom implements Party.Server {
     }
   }
 
-  /** Get the role for a connection ID */
   private getRole(connectionId: string): PlayerRole | null {
     if (connectionId === this.state.hostId) return 'host';
     if (connectionId === this.state.guestId) return 'guest';
     return null;
   }
 
-  /** Check if both players are lobby-ready → start drawing */
   private checkDrawingStart() {
     if (this.state.hostLobbyReady && this.state.guestLobbyReady) {
       this.state.phase = 'drawing';
+      this.log('phase_change', { newPhase: 'drawing' });
       this.broadcast({ type: 'drawing_start' });
     }
   }
 
-  /** Check if both players submitted strokes → start battle */
   private checkBattleStart() {
     if (
       this.state.hostReady &&
@@ -65,8 +71,8 @@ export default class BlobRoom implements Party.Server {
       this.state.guestStrokes
     ) {
       this.state.phase = 'fighting';
-      // Generate deterministic seed for both clients
       const seed = Math.floor(Math.random() * 2147483647);
+      this.log('phase_change', { newPhase: 'fighting', seed });
       this.broadcast({
         type: 'battle_start',
         hostStrokes: this.state.hostStrokes,
@@ -77,16 +83,15 @@ export default class BlobRoom implements Party.Server {
   }
 
   onConnect(conn: Party.Connection) {
-    console.log(`[${this.room.id}] Connection: ${conn.id}`);
+    this.log('connect', { connId: conn.id });
   }
 
   onClose(conn: Party.Connection) {
-    console.log(`[${this.room.id}] Disconnect: ${conn.id}`);
-
     const role = this.getRole(conn.id);
+    this.log('disconnect', { connId: conn.id, role });
+
     if (!role) return;
 
-    // Clear the player slot
     if (role === 'host') {
       this.state.hostId = null;
       this.state.hostName = null;
@@ -101,12 +106,11 @@ export default class BlobRoom implements Party.Server {
       this.state.guestStrokes = null;
     }
 
-    // Notify remaining player
     this.broadcast({ type: 'player_left', role });
 
-    // Reset phase
     if (this.state.phase !== 'waiting') {
       this.state.phase = 'waiting';
+      this.log('phase_change', { newPhase: 'waiting', reason: 'player_left' });
     }
   }
 
@@ -115,11 +119,11 @@ export default class BlobRoom implements Party.Server {
     try {
       msg = JSON.parse(message);
     } catch {
-      console.error(`[${this.room.id}] Invalid JSON from ${sender.id}`);
+      this.log('error', { type: 'invalid_json', connId: sender.id });
       return;
     }
 
-    console.log(`[${this.room.id}] ${msg.type} from ${sender.id}`);
+    this.log('message', { type: msg.type, connId: sender.id });
 
     switch (msg.type) {
       case 'join':
@@ -138,41 +142,30 @@ export default class BlobRoom implements Party.Server {
   }
 
   private handleJoin(conn: Party.Connection, name: string) {
-    // Check if room is full
     if (this.state.hostId && this.state.guestId) {
+      this.log('room_full', { connId: conn.id });
       this.send(conn, { type: 'room_full' });
       return;
     }
 
-    // Assign role
-    let role: PlayerRole;
-    if (!this.state.hostId) {
-      role = 'host';
+    const role: PlayerRole = this.state.hostId ? 'guest' : 'host';
+
+    if (role === 'host') {
       this.state.hostId = conn.id;
       this.state.hostName = name;
     } else {
-      role = 'guest';
       this.state.guestId = conn.id;
       this.state.guestName = name;
     }
 
-    // Send welcome to the new player
-    this.send(conn, {
-      type: 'welcome',
-      role,
-      roomState: this.state,
-    });
-
-    // Notify other player
+    this.log('join', { connId: conn.id, role, name });
+    this.send(conn, { type: 'welcome', role, roomState: this.state });
     this.broadcast({ type: 'player_joined', role, name }, conn.id);
   }
 
   private handleLobbyReady(conn: Party.Connection) {
     const role = this.getRole(conn.id);
-    if (!role) return;
-
-    // Can only lobby-ready if both players are present
-    if (!this.state.hostId || !this.state.guestId) return;
+    if (!role || !this.state.hostId || !this.state.guestId) return;
 
     if (role === 'host') {
       this.state.hostLobbyReady = true;
@@ -180,10 +173,8 @@ export default class BlobRoom implements Party.Server {
       this.state.guestLobbyReady = true;
     }
 
-    // Notify other player
+    this.log('lobby_ready', { role });
     this.broadcast({ type: 'player_lobby_ready', role }, conn.id);
-
-    // Check if both ready to start drawing
     this.checkDrawingStart();
   }
 
@@ -199,15 +190,12 @@ export default class BlobRoom implements Party.Server {
       this.state.guestStrokes = strokes;
     }
 
-    // Notify other player
+    this.log('ready', { role, strokeCount: strokes.length });
     this.broadcast({ type: 'player_ready', role }, conn.id);
-
-    // Check if both ready
     this.checkBattleStart();
   }
 
   private handleRematch() {
-    // Reset for new round
     this.state.hostLobbyReady = false;
     this.state.guestLobbyReady = false;
     this.state.hostReady = false;
@@ -216,6 +204,7 @@ export default class BlobRoom implements Party.Server {
     this.state.guestStrokes = null;
     this.state.phase = 'waiting';
 
+    this.log('rematch');
     this.broadcast({ type: 'rematch_start' });
   }
 }
