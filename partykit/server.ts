@@ -65,10 +65,13 @@ export default class BlobRoom implements Party.Server {
       this.state.guestStrokes
     ) {
       this.state.phase = 'fighting';
+      // Generate deterministic seed for both clients
+      const seed = Math.floor(Math.random() * 2147483647);
       this.broadcast({
         type: 'battle_start',
         hostStrokes: this.state.hostStrokes,
         guestStrokes: this.state.guestStrokes,
+        seed,
       });
     }
   }

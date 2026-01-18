@@ -30,7 +30,7 @@ export default function Home() {
   const [joinCode, setJoinCode] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const { phase, setPhase, setGameMode, setRoomCode, setIsHost, setOpponent } = useGameStore();
+  const { phase, setPhase, setGameMode, setRoomCode, setIsHost, setOpponent, setOpponentStrokes, setBattleSeed } = useGameStore();
   const [partyState, partyActions] = usePartyKitContext();
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'Player';
@@ -38,11 +38,21 @@ export default function Home() {
   // Sync PartyKit state to game store
   useEffect(() => {
     if (partyState.roomState?.phase === 'fighting') {
+      // Store opponent strokes and battle seed before transitioning to fighting
+      const opponentStrokes = partyState.role === 'host'
+        ? partyState.roomState.guestStrokes
+        : partyState.roomState.hostStrokes;
+      if (opponentStrokes) {
+        setOpponentStrokes(opponentStrokes);
+      }
+      if (partyState.battleSeed !== null) {
+        setBattleSeed(partyState.battleSeed);
+      }
       setPhase('fighting');
     } else if (partyState.roomState?.phase === 'drawing' && partyState.roomState.hostId && partyState.roomState.guestId) {
       setPhase('drawing');
     }
-  }, [partyState.roomState?.phase, partyState.roomState?.hostId, partyState.roomState?.guestId, setPhase]);
+  }, [partyState.roomState?.phase, partyState.roomState?.hostId, partyState.roomState?.guestId, partyState.role, partyState.roomState?.hostStrokes, partyState.roomState?.guestStrokes, partyState.battleSeed, setPhase, setOpponentStrokes, setBattleSeed]);
 
   // Update opponent info when they join
   useEffect(() => {

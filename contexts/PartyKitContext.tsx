@@ -14,6 +14,7 @@ export type PartyKitState = {
   role: PlayerRole | null;
   roomState: RoomState | null;
   error: string | null;
+  battleSeed: number | null;
 };
 
 export type PartyKitActions = {
@@ -34,6 +35,7 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<PlayerRole | null>(null);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [battleSeed, setBattleSeed] = useState<number | null>(null);
 
   /** Send a typed message to the server */
   const send = useCallback((message: ClientMessage) => {
@@ -104,6 +106,7 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
         break;
 
       case 'battle_start':
+        setBattleSeed(msg.seed);
         setRoomState((prev) =>
           prev
             ? {
@@ -117,6 +120,7 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
         break;
 
       case 'rematch_start':
+        setBattleSeed(null);
         setRoomState((prev) =>
           prev
             ? {
@@ -191,6 +195,7 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
     setRole(null);
     setRoomState(null);
     setError(null);
+    setBattleSeed(null);
   }, []);
 
   /** Send lobby ready (before drawing starts) */
@@ -220,7 +225,7 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const state: PartyKitState = { status, role, roomState, error };
+  const state: PartyKitState = { status, role, roomState, error, battleSeed };
   const actions: PartyKitActions = { connect, disconnect, sendLobbyReady, sendReady, sendRematch };
 
   return (

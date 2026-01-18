@@ -4,10 +4,12 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import Matter from 'matter-js';
 import { ArrowLeft } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
+import { usePartyKitContext } from '@/contexts/PartyKitContext';
 import { ARENA, PHYSICS, POWERUP, POWERUP_BORDER_COLORS, POWERUP_COLORS, POWERUP_ICONS, POWERUP_LABELS } from '@/lib/physics/constants';
 import { createBlobBody } from '@/lib/physics/createBlob';
 import { createArenaWalls, calculateCollisionDamage } from '@/lib/physics/combat';
 import { getRandomNPC } from '@/lib/npc';
+import { SeededRandom } from '@/lib/random';
 import type { BlobStats, PowerUpType, ArenaPoweUp } from '@/types/game';
 import HealthBar from './HealthBar';
 import BattleResult from './BattleResult';
@@ -46,6 +48,9 @@ export default function FightArena() {
     new Map()
   );
 
+  // Seeded random for deterministic physics
+  const rngRef = useRef<SeededRandom | null>(null);
+
   // Stats refs (for physics callbacks)
   const playerStatsRef = useRef<BlobStats | null>(null);
   const opponentStatsRef = useRef<BlobStats | null>(null);
@@ -75,21 +80,39 @@ export default function FightArena() {
   const [playerPowerUps, setPlayerPowerUps] = useState<PowerUpType[]>([]);
   const [opponentPowerUps, setOpponentPowerUps] = useState<PowerUpType[]>([]);
 
-  const { myStrokes, setWinner, reset, setPhase, clearStrokes, resetInk, setDrawingTimeLeft } =
-    useGameStore();
+  const {
+    myStrokes,
+    opponentStrokes,
+    gameMode,
+    opponent,
+    isHost,
+    battleSeed,
+    setWinner,
+    reset,
+    setPhase,
+    clearStrokes,
+    resetInk,
+    setDrawingTimeLeft,
+    setBattleSeed,
+  } = useGameStore();
 
-  /** Spawn a power-up at a random position */
+  const [, partyActions] = usePartyKitContext();
+
+  const isMultiplayer = gameMode === 'multiplayer';
+
+  /** Spawn a power-up at a deterministic position */
   const spawnPowerUp = useCallback((threshold: number) => {
-    if (!engineRef.current) return;
+    if (!engineRef.current || !rngRef.current) return;
     if (triggeredThresholdsRef.current.has(threshold)) return;
 
     triggeredThresholdsRef.current.add(threshold);
 
+    const rng = rngRef.current;
     const types: PowerUpType[] = ['damage', 'heal', 'shield', 'regen'];
-    const type = types[Math.floor(Math.random() * types.length)];
+    const type = rng.pick(types);
 
-    const x = 100 + Math.random() * (ARENA.WIDTH - 200);
-    const y = 100 + Math.random() * (ARENA.HEIGHT - 200);
+    const x = rng.range(100, ARENA.WIDTH - 100);
+    const y = rng.range(100, ARENA.HEIGHT - 100);
 
     const powerUp = Matter.Bodies.circle(x, y, POWERUP.RADIUS, {
       label: 'powerup',
@@ -122,6 +145,7 @@ export default function FightArena() {
     powerUpBodiesRef.current.clear();
     playerStatsRef.current = null;
     opponentStatsRef.current = null;
+    rngRef.current = null;
     triggeredThresholdsRef.current.clear();
     playerDamageMultRef.current = 1;
     opponentDamageMultRef.current = 1;
@@ -146,6 +170,13 @@ export default function FightArena() {
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // Initialize seeded RNG - use battleSeed for multiplayer, random for NPC
+    const seed = isMultiplayer && battleSeed !== null
+      ? battleSeed
+      : Math.floor(Math.random() * 2147483647);
+    rngRef.current = new SeededRandom(seed);
+    const rng = rngRef.current;
+
     const engine = Matter.Engine.create({ gravity: PHYSICS.GRAVITY });
     engineRef.current = engine;
 
@@ -165,63 +196,125 @@ export default function FightArena() {
 
     Matter.Composite.add(engine.world, createArenaWalls());
 
-    // Create player blob
-    const playerBlob = createBlobBody(myStrokes, {
+    // Determine which strokes go on which side
+    // In multiplayer: host strokes = left, guest strokes = right (same for both clients)
+    // For this client: "my" blob uses my strokes, but position depends on role
+    const npc = isMultiplayer ? null : getRandomNPC();
+
+    let leftStrokes, rightStrokes, leftColor, rightColor, leftLabel: string, rightLabel: string;
+    let myBlobIsLeft: boolean;
+
+    if (isMultiplayer) {
+      // Host's strokes always on left, guest's on right
+      // From this client's perspective, determine which is "mine"
+      if (isHost) {
+        // I'm host: my strokes on left
+        leftStrokes = myStrokes;
+        rightStrokes = opponentStrokes;
+        leftColor = '#4ade80';
+        rightColor = '#f87171';
+        myBlobIsLeft = true;
+      } else {
+        // I'm guest: host strokes on left, my strokes on right
+        leftStrokes = opponentStrokes;
+        rightStrokes = myStrokes;
+        leftColor = '#f87171';
+        rightColor = '#4ade80';
+        myBlobIsLeft = false;
+      }
+      leftLabel = myBlobIsLeft ? 'player' : 'opponent';
+      rightLabel = myBlobIsLeft ? 'opponent' : 'player';
+    } else {
+      // NPC mode: player on left, NPC on right
+      leftStrokes = myStrokes;
+      rightStrokes = npc!.strokes;
+      leftColor = '#4ade80';
+      rightColor = npc!.color;
+      leftLabel = 'player';
+      rightLabel = 'opponent';
+      myBlobIsLeft = true;
+    }
+
+    // Create left blob (always spawns on left side)
+    const leftBlob = createBlobBody(leftStrokes, {
       x: ARENA.SPAWN_OFFSET,
       y: ARENA.HEIGHT / 2,
       scale: PHYSICS.BLOB_SCALE,
-      label: 'player',
-      color: '#4ade80',
+      label: leftLabel,
+      color: leftColor,
     });
 
-    if (playerBlob) {
-      Matter.Composite.add(engine.world, playerBlob.body);
-      playerBodyRef.current = playerBlob.body;
-      playerStatsRef.current = playerBlob.stats;
-
-      requestAnimationFrame(() => {
-        setPlayerStats(playerBlob.stats);
-        setPlayerHp(playerBlob.stats.hp);
-        setPlayerMaxHp(playerBlob.stats.maxHp);
-      });
-
-      const angle = Math.random() * 0.5 - 0.25;
-      Matter.Body.setVelocity(playerBlob.body, {
-        x: PHYSICS.INITIAL_SPEED * Math.cos(angle),
-        y: PHYSICS.INITIAL_SPEED * Math.sin(angle),
-      });
-      Matter.Body.setAngularVelocity(playerBlob.body, PHYSICS.INITIAL_SPIN);
-    }
-
-    // Create opponent blob
-    const npc = getRandomNPC();
-    const opponentBlob = createBlobBody(npc.strokes, {
+    // Create right blob (always spawns on right side)
+    const rightBlob = createBlobBody(rightStrokes, {
       x: ARENA.WIDTH - ARENA.SPAWN_OFFSET,
       y: ARENA.HEIGHT / 2,
       scale: PHYSICS.BLOB_SCALE,
-      label: 'opponent',
-      color: npc.color,
+      label: rightLabel,
+      color: rightColor,
     });
 
-    if (opponentBlob) {
-      Matter.Composite.add(engine.world, opponentBlob.body);
-      opponentBodyRef.current = opponentBlob.body;
-      opponentStatsRef.current = opponentBlob.stats;
-
-      requestAnimationFrame(() => {
-        setOpponentName(npc.name);
-        setOpponentStats(opponentBlob.stats);
-        setOpponentHp(opponentBlob.stats.hp);
-        setOpponentMaxHp(opponentBlob.stats.maxHp);
-      });
-
-      const angle = Math.PI + (Math.random() * 0.5 - 0.25);
-      Matter.Body.setVelocity(opponentBlob.body, {
-        x: PHYSICS.INITIAL_SPEED * Math.cos(angle),
-        y: PHYSICS.INITIAL_SPEED * Math.sin(angle),
-      });
-      Matter.Body.setAngularVelocity(opponentBlob.body, -PHYSICS.INITIAL_SPIN);
+    // Assign bodies to refs based on which is "mine"
+    if (myBlobIsLeft) {
+      if (leftBlob) {
+        playerBodyRef.current = leftBlob.body;
+        playerStatsRef.current = leftBlob.stats;
+      }
+      if (rightBlob) {
+        opponentBodyRef.current = rightBlob.body;
+        opponentStatsRef.current = rightBlob.stats;
+      }
+    } else {
+      if (rightBlob) {
+        playerBodyRef.current = rightBlob.body;
+        playerStatsRef.current = rightBlob.stats;
+      }
+      if (leftBlob) {
+        opponentBodyRef.current = leftBlob.body;
+        opponentStatsRef.current = leftBlob.stats;
+      }
     }
+
+    // Add blobs to world
+    if (leftBlob) Matter.Composite.add(engine.world, leftBlob.body);
+    if (rightBlob) Matter.Composite.add(engine.world, rightBlob.body);
+
+    // Set initial velocities using seeded random (deterministic)
+    const leftAngle = rng.range(-0.25, 0.25);
+    const rightAngle = Math.PI + rng.range(-0.25, 0.25);
+
+    if (leftBlob) {
+      Matter.Body.setVelocity(leftBlob.body, {
+        x: PHYSICS.INITIAL_SPEED * Math.cos(leftAngle),
+        y: PHYSICS.INITIAL_SPEED * Math.sin(leftAngle),
+      });
+      Matter.Body.setAngularVelocity(leftBlob.body, PHYSICS.INITIAL_SPIN);
+    }
+
+    if (rightBlob) {
+      Matter.Body.setVelocity(rightBlob.body, {
+        x: PHYSICS.INITIAL_SPEED * Math.cos(rightAngle),
+        y: PHYSICS.INITIAL_SPEED * Math.sin(rightAngle),
+      });
+      Matter.Body.setAngularVelocity(rightBlob.body, -PHYSICS.INITIAL_SPIN);
+    }
+
+    // Set UI state
+    requestAnimationFrame(() => {
+      if (playerStatsRef.current) {
+        setPlayerStats(playerStatsRef.current);
+        setPlayerHp(playerStatsRef.current.hp);
+        setPlayerMaxHp(playerStatsRef.current.maxHp);
+      }
+      if (opponentStatsRef.current) {
+        setOpponentStats(opponentStatsRef.current);
+        setOpponentHp(opponentStatsRef.current.hp);
+        setOpponentMaxHp(opponentStatsRef.current.maxHp);
+      }
+      const displayName = isMultiplayer
+        ? (opponent?.username || 'Opponent')
+        : npc!.name;
+      setOpponentName(displayName);
+    });
 
     // Collision handler
     Matter.Events.on(engine, 'collisionStart', (event) => {
@@ -361,13 +454,16 @@ export default function FightArena() {
       normalizeSpeed(opponentBodyRef.current);
     });
 
-    const runner = Matter.Runner.create();
+    // Run physics with fixed timestep for determinism
+    const runner = Matter.Runner.create({
+      delta: 1000 / 60, // Fixed 60fps timestep
+    });
     runnerRef.current = runner;
     Matter.Runner.run(runner, engine);
     Matter.Render.run(render);
 
     return cleanup;
-  }, [myStrokes, cleanup, playerMaxHp, opponentMaxHp, checkPowerUpSpawn]);
+  }, [myStrokes, opponentStrokes, gameMode, opponent?.username, isHost, battleSeed, isMultiplayer, cleanup, playerMaxHp, opponentMaxHp, checkPowerUpSpawn]);
 
   /** Handle battle end */
   useEffect(() => {
@@ -404,6 +500,12 @@ export default function FightArena() {
     clearStrokes();
     resetInk();
     setDrawingTimeLeft(15);
+    setBattleSeed(null);
+
+    // In multiplayer, trigger rematch via PartyKit
+    if (isMultiplayer) {
+      partyActions.sendRematch();
+    }
     setPhase('drawing');
   };
 
@@ -465,11 +567,11 @@ export default function FightArena() {
         <div className="flex items-center gap-4">
           <span>
             <b>DMG:</b>{' '}
-            <span className={playerStats?.damage 
-              ? playerStats.damage >= 20 
-                ? 'text-red-500 font-bold' 
-                : playerStats.damage >= 15 
-                  ? 'text-orange-400 font-bold' 
+            <span className={playerStats?.damage
+              ? playerStats.damage >= 20
+                ? 'text-red-500 font-bold'
+                : playerStats.damage >= 15
+                  ? 'text-orange-400 font-bold'
                   : 'text-white/70'
               : ''
             }>
@@ -478,11 +580,11 @@ export default function FightArena() {
           </span>
           <span>
             <b>MASS:</b>{' '}
-            <span className={playerStats?.mass 
+            <span className={playerStats?.mass
               ? playerStats.mass >= 20
-                ? 'text-red-500 font-bold' 
-                : playerStats.mass >= 15 
-                  ? 'text-orange-400 font-bold' 
+                ? 'text-red-500 font-bold'
+                : playerStats.mass >= 15
+                  ? 'text-orange-400 font-bold'
                   : 'text-white/70'
               : ''
             }>
@@ -503,11 +605,11 @@ export default function FightArena() {
           </div>
           <span>
             <b>MASS:</b>{' '}
-            <span className={opponentStats?.mass 
-              ? opponentStats.mass >= 20 
-                ? 'text-red-500 font-bold' 
-                : opponentStats.mass >= 15 
-                  ? 'text-orange-400 font-bold' 
+            <span className={opponentStats?.mass
+              ? opponentStats.mass >= 20
+                ? 'text-red-500 font-bold'
+                : opponentStats.mass >= 15
+                  ? 'text-orange-400 font-bold'
                   : 'text-white/70'
               : ''
             }>
@@ -516,11 +618,11 @@ export default function FightArena() {
           </span>
           <span>
             <b>DMG:</b>{' '}
-            <span className={opponentStats?.damage 
-              ? opponentStats.damage >= 20 
-                ? 'text-red-500 font-bold' 
-                : opponentStats.damage >= 15 
-                  ? 'text-orange-400 font-bold' 
+            <span className={opponentStats?.damage
+              ? opponentStats.damage >= 20
+                ? 'text-red-500 font-bold'
+                : opponentStats.damage >= 15
+                  ? 'text-orange-400 font-bold'
                   : 'text-white/70'
               : ''
             }>

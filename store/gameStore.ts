@@ -26,6 +26,7 @@ type GameStore = {
   opponentStrokes: Stroke[];
   addMyStroke: (stroke: Stroke) => void;
   addOpponentStroke: (stroke: Stroke) => void;
+  setOpponentStrokes: (strokes: Stroke[]) => void;
   clearStrokes: () => void;
   
   inkRemaining: number;
@@ -43,6 +44,10 @@ type GameStore = {
   
   winner: 'me' | 'opponent' | null;
   setWinner: (winner: 'me' | 'opponent' | null) => void;
+
+  // Battle seed for deterministic physics
+  battleSeed: number | null;
+  setBattleSeed: (seed: number | null) => void;
 
   // Actions
   reset: () => void;
@@ -75,6 +80,7 @@ export const useGameStore = create<GameStore>((set) => ({
   opponentStrokes: [],
   addMyStroke: (stroke) => set((state) => ({ myStrokes: [...state.myStrokes, stroke] })),
   addOpponentStroke: (stroke) => set((state) => ({ opponentStrokes: [...state.opponentStrokes, stroke] })),
+  setOpponentStrokes: (strokes) => set({ opponentStrokes: strokes }),
   clearStrokes: () => set({ myStrokes: [], opponentStrokes: [] }),
   
   inkRemaining: INITIAL_INK,
@@ -93,6 +99,10 @@ export const useGameStore = create<GameStore>((set) => ({
   winner: null,
   setWinner: (winner) => set({ winner }),
 
+  // Battle seed
+  battleSeed: null,
+  setBattleSeed: (seed) => set({ battleSeed: seed }),
+
   // Reset
   reset: () => set({
     phase: 'menu',
@@ -107,5 +117,6 @@ export const useGameStore = create<GameStore>((set) => ({
     myBlob: null,
     opponentBlob: null,
     winner: null,
+    battleSeed: null,
   }),
 }));

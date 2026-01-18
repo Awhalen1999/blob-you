@@ -9,3 +9,5 @@
 Nice to haves:
 - animated blob for main menu
 - chat
+- sharpness nerf
+- bomb/damaging power up?

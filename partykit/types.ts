@@ -83,6 +83,7 @@ export type BattleStartMessage = {
   type: 'battle_start';
   hostStrokes: Stroke[];
   guestStrokes: Stroke[];
+  seed: number; // Deterministic random seed for identical simulations
 };
 
 export type RematchStartMessage = {
