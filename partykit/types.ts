@@ -17,6 +17,9 @@ export type RoomState = {
   guestReady: boolean;
   hostStrokes: Stroke[] | null;
   guestStrokes: Stroke[] | null;
+  // Rematch requests
+  hostRematchRequested: boolean;
+  guestRematchRequested: boolean;
   phase: 'waiting' | 'drawing' | 'fighting';
 };
 
@@ -42,11 +45,11 @@ export type ReadyMessage = {
   strokes: Stroke[];
 };
 
-export type RematchMessage = {
-  type: 'rematch';
+export type RematchRequestMessage = {
+  type: 'rematch_request';
 };
 
-export type ClientMessage = JoinMessage | LobbyReadyMessage | LobbyUnreadyMessage | ReadyMessage | RematchMessage;
+export type ClientMessage = JoinMessage | LobbyReadyMessage | LobbyUnreadyMessage | ReadyMessage | RematchRequestMessage;
 
 // ===========================================
 // SERVER → CLIENT MESSAGES
@@ -95,6 +98,11 @@ export type BattleStartMessage = {
   seed: number; // Deterministic random seed for identical simulations
 };
 
+export type PlayerRematchRequestedMessage = {
+  type: 'player_rematch_requested';
+  role: PlayerRole;
+};
+
 export type RematchStartMessage = {
   type: 'rematch_start';
 };
@@ -117,6 +125,7 @@ export type ServerMessage =
   | DrawingStartMessage
   | PlayerReadyMessage
   | BattleStartMessage
+  | PlayerRematchRequestedMessage
   | RematchStartMessage
   | RoomFullMessage
   | ErrorMessage;

@@ -23,7 +23,7 @@ export type PartyKitActions = {
   sendLobbyReady: () => void;
   sendLobbyUnready: () => void;
   sendReady: (strokes: Stroke[]) => void;
-  sendRematch: () => void;
+  sendRematchRequest: () => void;
 };
 
 type PartyKitContextValue = [PartyKitState, PartyKitActions];
@@ -128,6 +128,15 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
         );
         break;
 
+      case 'player_rematch_requested':
+        setRoomState((prev) => {
+          if (!prev) return prev;
+          return msg.role === 'host'
+            ? { ...prev, hostRematchRequested: true }
+            : { ...prev, guestRematchRequested: true };
+        });
+        break;
+
       case 'rematch_start':
         setBattleSeed(null);
         setRoomState((prev) =>
@@ -139,6 +148,8 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
                 guestReady: false,
                 hostStrokes: null,
                 guestStrokes: null,
+                hostRematchRequested: false,
+                guestRematchRequested: false,
               }
             : prev
         );
@@ -238,9 +249,16 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
     [send]
   );
 
-  const sendRematch = useCallback(() => {
-    send({ type: 'rematch' });
-  }, [send]);
+  const sendRematchRequest = useCallback(() => {
+    send({ type: 'rematch_request' });
+    // Optimistic update - immediately reflect our rematch request
+    setRoomState((prev) => {
+      if (!prev || !role) return prev;
+      return role === 'host'
+        ? { ...prev, hostRematchRequested: true }
+        : { ...prev, guestRematchRequested: true };
+    });
+  }, [send, role]);
 
   useEffect(() => {
     return () => {
@@ -251,7 +269,7 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const state: PartyKitState = { status, role, roomState, error, battleSeed };
-  const actions: PartyKitActions = { connect, disconnect, sendLobbyReady, sendLobbyUnready, sendReady, sendRematch };
+  const actions: PartyKitActions = { connect, disconnect, sendLobbyReady, sendLobbyUnready, sendReady, sendRematchRequest };
 
   return (
     <PartyKitContext.Provider value={[state, actions]}>

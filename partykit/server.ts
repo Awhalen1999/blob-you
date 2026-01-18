@@ -14,6 +14,8 @@ function createInitialState(): RoomState {
     guestReady: false,
     hostStrokes: null,
     guestStrokes: null,
+    hostRematchRequested: false,
+    guestRematchRequested: false,
     phase: 'waiting',
   };
 }
@@ -98,12 +100,14 @@ export default class BlobRoom implements Party.Server {
       this.state.hostLobbyReady = false;
       this.state.hostReady = false;
       this.state.hostStrokes = null;
+      this.state.hostRematchRequested = false;
     } else {
       this.state.guestId = null;
       this.state.guestName = null;
       this.state.guestLobbyReady = false;
       this.state.guestReady = false;
       this.state.guestStrokes = null;
+      this.state.guestRematchRequested = false;
     }
 
     this.broadcast({ type: 'player_left', role });
@@ -138,8 +142,8 @@ export default class BlobRoom implements Party.Server {
       case 'ready':
         this.handleReady(sender, msg.strokes);
         break;
-      case 'rematch':
-        this.handleRematch();
+      case 'rematch_request':
+        this.handleRematchRequest(sender);
         break;
     }
   }
@@ -212,17 +216,36 @@ export default class BlobRoom implements Party.Server {
     this.checkBattleStart();
   }
 
-  private handleRematch() {
-    this.state.hostLobbyReady = false;
-    this.state.guestLobbyReady = false;
-    this.state.hostReady = false;
-    this.state.guestReady = false;
-    this.state.hostStrokes = null;
-    this.state.guestStrokes = null;
-    this.state.phase = 'waiting';
+  private handleRematchRequest(conn: Party.Connection) {
+    const role = this.getRole(conn.id);
+    if (!role) return;
 
-    this.log('rematch');
-    this.broadcast({ type: 'rematch_start' });
+    // Toggle rematch request for this player
+    if (role === 'host') {
+      this.state.hostRematchRequested = true;
+    } else {
+      this.state.guestRematchRequested = true;
+    }
+
+    this.log('rematch_request', { role });
+    this.broadcast({ type: 'player_rematch_requested', role }, conn.id);
+
+    // Check if both players requested rematch
+    if (this.state.hostRematchRequested && this.state.guestRematchRequested) {
+      // Reset state for new game
+      this.state.hostLobbyReady = false;
+      this.state.guestLobbyReady = false;
+      this.state.hostReady = false;
+      this.state.guestReady = false;
+      this.state.hostStrokes = null;
+      this.state.guestStrokes = null;
+      this.state.hostRematchRequested = false;
+      this.state.guestRematchRequested = false;
+      this.state.phase = 'waiting';
+
+      this.log('rematch_start');
+      this.broadcast({ type: 'rematch_start' });
+    }
   }
 }
 

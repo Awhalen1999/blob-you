@@ -96,9 +96,21 @@ export default function FightArena() {
     setBattleSeed,
   } = useGameStore();
 
-  const [, partyActions] = usePartyKitContext();
+  const [partyState, partyActions] = usePartyKitContext();
 
   const isMultiplayer = gameMode === 'multiplayer';
+
+  // Rematch request state for multiplayer
+  const myRematchRequested = isMultiplayer && partyState.role
+    ? (partyState.role === 'host' 
+        ? partyState.roomState?.hostRematchRequested 
+        : partyState.roomState?.guestRematchRequested) || false
+    : false;
+  const opponentRematchRequested = isMultiplayer && partyState.role
+    ? (partyState.role === 'host'
+        ? partyState.roomState?.guestRematchRequested
+        : partyState.roomState?.hostRematchRequested) || false
+    : false;
 
   /** Spawn a power-up at a deterministic position */
   const spawnPowerUp = useCallback((threshold: number) => {
@@ -490,23 +502,42 @@ export default function FightArena() {
     }
   }, [playerHp, opponentHp, battleOver, setWinner]);
 
-  const handleRematch = () => {
-    cleanup();
-    setBattleOver(false);
-    setWinner(null);
-    setPlayerPowerUps([]);
-    setOpponentPowerUps([]);
-    setPowerUps([]);
-    clearStrokes();
-    resetInk();
-    setDrawingTimeLeft(15);
-    setBattleSeed(null);
-
-    // In multiplayer, trigger rematch via PartyKit
-    if (isMultiplayer) {
-      partyActions.sendRematch();
+  // Handle server-initiated rematch (both players agreed)
+  useEffect(() => {
+    if (isMultiplayer && partyState.roomState?.phase === 'drawing' && battleOver) {
+      // Both players agreed to rematch - reset and go to drawing
+      cleanup();
+      setBattleOver(false);
+      setWinner(null);
+      setPlayerPowerUps([]);
+      setOpponentPowerUps([]);
+      setPowerUps([]);
+      clearStrokes();
+      resetInk();
+      setDrawingTimeLeft(15);
+      setBattleSeed(null);
+      setPhase('drawing');
     }
-    setPhase('drawing');
+  }, [isMultiplayer, partyState.roomState?.phase, battleOver, cleanup, clearStrokes, resetInk, setDrawingTimeLeft, setBattleSeed, setPhase, setWinner]);
+
+  const handleRematch = () => {
+    if (isMultiplayer) {
+      // Online mode - send rematch request
+      partyActions.sendRematchRequest();
+    } else {
+      // Offline mode - instant rematch
+      cleanup();
+      setBattleOver(false);
+      setWinner(null);
+      setPlayerPowerUps([]);
+      setOpponentPowerUps([]);
+      setPowerUps([]);
+      clearStrokes();
+      resetInk();
+      setDrawingTimeLeft(15);
+      setBattleSeed(null);
+      setPhase('drawing');
+    }
   };
 
   const handleMainMenu = () => {
@@ -559,7 +590,14 @@ export default function FightArena() {
       </div>
 
       {battleOver && (
-        <BattleResult isVictory={isVictory} onRematch={handleRematch} onMainMenu={handleMainMenu} />
+        <BattleResult 
+          isVictory={isVictory} 
+          isMultiplayer={isMultiplayer}
+          myRematchRequested={myRematchRequested}
+          opponentRematchRequested={opponentRematchRequested}
+          onRematch={handleRematch} 
+          onMainMenu={handleMainMenu} 
+        />
       )}
 
       {/* Stats bar */}
