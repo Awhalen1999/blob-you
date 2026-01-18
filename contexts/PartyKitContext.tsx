@@ -21,6 +21,7 @@ export type PartyKitActions = {
   connect: (roomCode: string, playerName: string) => void;
   disconnect: () => void;
   sendLobbyReady: () => void;
+  sendLobbyUnready: () => void;
   sendReady: (strokes: Stroke[]) => void;
   sendRematch: () => void;
 };
@@ -97,6 +98,15 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
           return msg.role === 'host'
             ? { ...prev, hostLobbyReady: true }
             : { ...prev, guestLobbyReady: true };
+        });
+        break;
+
+      case 'player_lobby_unready':
+        setRoomState((prev) => {
+          if (!prev) return prev;
+          return msg.role === 'host'
+            ? { ...prev, hostLobbyReady: false }
+            : { ...prev, guestLobbyReady: false };
         });
         break;
 
@@ -201,7 +211,25 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
 
   const sendLobbyReady = useCallback(() => {
     send({ type: 'lobby_ready' });
-  }, [send]);
+    // Update own state immediately since server doesn't echo back to sender
+    setRoomState((prev) => {
+      if (!prev || !role) return prev;
+      return role === 'host'
+        ? { ...prev, hostLobbyReady: true }
+        : { ...prev, guestLobbyReady: true };
+    });
+  }, [send, role]);
+
+  const sendLobbyUnready = useCallback(() => {
+    send({ type: 'lobby_unready' });
+    // Update own state immediately since server doesn't echo back to sender
+    setRoomState((prev) => {
+      if (!prev || !role) return prev;
+      return role === 'host'
+        ? { ...prev, hostLobbyReady: false }
+        : { ...prev, guestLobbyReady: false };
+    });
+  }, [send, role]);
 
   const sendReady = useCallback(
     (strokes: Stroke[]) => {
@@ -223,7 +251,7 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const state: PartyKitState = { status, role, roomState, error, battleSeed };
-  const actions: PartyKitActions = { connect, disconnect, sendLobbyReady, sendReady, sendRematch };
+  const actions: PartyKitActions = { connect, disconnect, sendLobbyReady, sendLobbyUnready, sendReady, sendRematch };
 
   return (
     <PartyKitContext.Provider value={[state, actions]}>

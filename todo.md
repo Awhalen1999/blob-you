@@ -1,12 +1,12 @@
-- ensure old rooms are deleted / investigate
 - update UI for ready state in drawing canvas
 - update match code / match room UI slightly
 - make sure room gets killed or return to room page after opp leaves
-- party room - show ready status for own status + disable ready button (or change to unready when ready is active)
 - add message for rematch request only execute rematch if both parties agree
 - handle case where user does not draw anything
 - test case where timer runs out in party
 - test what happens if a third user attempts to join party
+- ensure old rooms are deleted / investigate
+- test what happens if host leaves the lobby
 
 Nice to haves:
 - animated blob for main menu

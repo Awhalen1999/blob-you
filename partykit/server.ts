@@ -132,6 +132,9 @@ export default class BlobRoom implements Party.Server {
       case 'lobby_ready':
         this.handleLobbyReady(sender);
         break;
+      case 'lobby_unready':
+        this.handleLobbyUnready(sender);
+        break;
       case 'ready':
         this.handleReady(sender, msg.strokes);
         break;
@@ -176,6 +179,20 @@ export default class BlobRoom implements Party.Server {
     this.log('lobby_ready', { role });
     this.broadcast({ type: 'player_lobby_ready', role }, conn.id);
     this.checkDrawingStart();
+  }
+
+  private handleLobbyUnready(conn: Party.Connection) {
+    const role = this.getRole(conn.id);
+    if (!role) return;
+
+    if (role === 'host') {
+      this.state.hostLobbyReady = false;
+    } else {
+      this.state.guestLobbyReady = false;
+    }
+
+    this.log('lobby_unready', { role });
+    this.broadcast({ type: 'player_lobby_unready', role }, conn.id);
   }
 
   private handleReady(conn: Party.Connection, strokes: Stroke[]) {

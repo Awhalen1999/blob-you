@@ -33,6 +33,10 @@ export type LobbyReadyMessage = {
   type: 'lobby_ready';
 };
 
+export type LobbyUnreadyMessage = {
+  type: 'lobby_unready';
+};
+
 export type ReadyMessage = {
   type: 'ready';
   strokes: Stroke[];
@@ -42,7 +46,7 @@ export type RematchMessage = {
   type: 'rematch';
 };
 
-export type ClientMessage = JoinMessage | LobbyReadyMessage | ReadyMessage | RematchMessage;
+export type ClientMessage = JoinMessage | LobbyReadyMessage | LobbyUnreadyMessage | ReadyMessage | RematchMessage;
 
 // ===========================================
 // SERVER → CLIENT MESSAGES
@@ -67,6 +71,11 @@ export type PlayerLeftMessage = {
 
 export type PlayerLobbyReadyMessage = {
   type: 'player_lobby_ready';
+  role: PlayerRole;
+};
+
+export type PlayerLobbyUnreadyMessage = {
+  type: 'player_lobby_unready';
   role: PlayerRole;
 };
 
@@ -104,6 +113,7 @@ export type ServerMessage =
   | PlayerJoinedMessage
   | PlayerLeftMessage
   | PlayerLobbyReadyMessage
+  | PlayerLobbyUnreadyMessage
   | DrawingStartMessage
   | PlayerReadyMessage
   | BattleStartMessage

@@ -139,8 +139,16 @@ export default function Home() {
     setIsHost(false);
   };
 
-  const handleStartDrawing = () => {
-    partyActions.sendLobbyReady();
+  const handleToggleReady = () => {
+    const myLobbyReady = partyState.role === 'host'
+      ? partyState.roomState?.hostLobbyReady
+      : partyState.roomState?.guestLobbyReady;
+    
+    if (myLobbyReady) {
+      partyActions.sendLobbyUnready();
+    } else {
+      partyActions.sendLobbyReady();
+    }
   };
 
   // Lobby View (waiting for opponent or ready to start)
@@ -202,21 +210,23 @@ export default function Home() {
         {/* Players */}
         <div className="flex justify-between mb-md px-4">
           <div className="text-center">
-            <p className="text-xs text-white/50 mb-1">YOU</p>
+            <p className="text-xs text-white/50 mb-1">
+              YOU {partyState.role && <span className="text-white/30">({partyState.role})</span>}
+            </p>
             <p className="text-white font-bold">{displayName}</p>
-            {myLobbyReady ? (
-              <p className="text-xs text-green-400">READY</p>
-            ) : partyState.role ? (
-              <p className="text-xs text-white/30">({partyState.role})</p>
-            ) : null}
+            {myLobbyReady && (
+              <p className="text-sm font-bold text-green-400 mt-0.5">READY</p>
+            )}
           </div>
           <div className="text-center">
-            <p className="text-xs text-white/50 mb-1">OPPONENT</p>
+            <p className="text-xs text-white/50 mb-1">
+              OPPONENT {hasOpponent && partyState.role === 'guest' && <span className="text-white/30">(host)</span>}
+            </p>
             {hasOpponent ? (
               <>
                 <p className="text-white font-bold">{opponentName}</p>
                 {opponentLobbyReady && (
-                  <p className="text-xs text-green-400">READY</p>
+                  <p className="text-sm font-bold text-green-400 mt-0.5">READY</p>
                 )}
               </>
             ) : (
@@ -227,13 +237,13 @@ export default function Home() {
 
         <div className="flex flex-col gap-3">
           <Button
-            onClick={handleStartDrawing}
-            disabled={!hasOpponent || myLobbyReady}
+            onClick={handleToggleReady}
+            disabled={!hasOpponent}
             variant="success"
             size="lg"
             fullWidth
           >
-            {myLobbyReady ? (opponentLobbyReady ? 'Starting...' : 'Waiting for opponent...') : hasOpponent ? 'Ready!' : 'Waiting...'}
+            {!hasOpponent ? 'Waiting...' : myLobbyReady ? (opponentLobbyReady ? 'Starting...' : 'Unready') : 'Ready!'}
           </Button>
           <Button onClick={handleBack} variant="secondary" size="lg" fullWidth icon={<LogOut className="w-4 h-4" />}>
             Leave Room
