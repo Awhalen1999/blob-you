@@ -1,204 +1,99 @@
-# Blob Battle Physics System
+# Physics System
 
-A simple physics engine where **shape matters**. Draw your blob, then watch it battle.
+Draw a blob. Watch it fight. Shape determines stats.
 
----
-
-## How It Works
+## Quick Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                                                                 │
-│   DRAWING          PHYSICS BODY         BATTLE                  │
-│   ────────         ────────────         ──────                  │
-│                                                                 │
-│   Player draws  →  Strokes become  →  Blobs bounce around       │
-│   on canvas        Matter.js body      and collide              │
-│                                                                 │
-│   Ink = 100        Stats calculated:   Damage = f(speed,        │
-│   Time = 30s       • Mass (area)         mass, sharpness)       │
-│                    • Damage (corners)                           │
-│                    • HP (ink + area)   First to 0 HP loses      │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+You Draw  →  We Calculate  →  Blobs Battle
+─────────    ─────────────    ────────────
+Strokes      Mass, Damage,    Constant speed,
+on canvas    HP from shape    bounce off walls
 ```
 
----
+## How Stats Work
 
-## Stats Overview
-
-| Stat | Based On | Effect |
-|------|----------|--------|
-| **Mass** | Shape area | Heavier = more collision damage |
-| **Damage** | Sharp corners | More spikes = damage multiplier |
-| **HP** | Ink used + area | Bigger drawing = more health |
-| **Stability** | Symmetry | (Reserved for future use) |
-
----
+| Stat | Comes From | Effect |
+|------|------------|--------|
+| **Mass** | Shape area | Heavier = more base damage |
+| **Damage** | Sharp corners | Spiky = damage multiplier |
+| **HP** | Area + ink used | Bigger drawing = more health |
 
 ## The Tradeoff
 
 ```
-TANKY BLOB                         GLASS CANNON
-───────────                        ────────────
-
-    ████████                           ╲  ╱
-   ██████████                           ╲╱
-   ██████████         vs                ╱╲
-    ████████                           ╱  ╲
-
-• High HP                          • Low HP
-• Low damage                       • High damage multiplier
-• More mass                        • Sharp corners hurt!
+BIG ROUND BLOB              SMALL SPIKY BLOB
+──────────────              ────────────────
+High HP (200)               Low HP (30)
+Low damage (~12/hit)        High damage (~47/hit)
+Survives mistakes           Dies fast, kills fast
 ```
 
-**Round shapes** survive longer. **Spiky shapes** deal more damage per hit.
-
----
-
-## File Structure
-
-```
-lib/physics/
-├── constants.ts      # All tunable values (change game feel here)
-├── geometry.ts       # Pure math: area, angles, hull, simplify
-├── calculateStats.ts # Converts body → stats
-├── createBlob.ts     # Converts strokes → Matter.js body
-├── combat.ts         # Collision damage + arena walls
-└── index.ts          # Clean exports
-```
-
----
-
-## Constants (Tuning Knobs)
-
-```typescript
-// lib/physics/constants.ts
-
-PHYSICS = {
-  INITIAL_SPEED: 5,        // Blob movement speed (constant)
-  BLOB_SCALE: 0.5,         // Drawing → arena size ratio
-}
-
-STATS = {
-  // Mass
-  MASS_MULTIPLIER: 0.0008, // area × this = mass
-  
-  // Sharpness
-  SHARP_ANGLE_THRESHOLD: 90,   // Angles < 90° = sharp corner
-  SPIKE_ANGLE_THRESHOLD: 60,   // Angles < 60° = spike (bonus damage)
-  DAMAGE_PER_SHARP: 3,
-  DAMAGE_PER_SPIKE: 5,
-  
-  // HP
-  BASE_HP: 50,
-  HP_PER_INK: 0.5,
-  HP_PER_AREA: 0.02,
-}
-
-COMBAT = {
-  VELOCITY_FACTOR: 0.3,    // Speed → damage
-  MASS_FACTOR: 0.08,       // Mass → damage  
-  SHARPNESS_FACTOR: 0.25,  // Sharpness → damage multiplier
-}
-```
-
----
+Both are viable. No single "best" shape.
 
 ## Damage Formula
 
 ```
 damage = (speed × 0.3 + mass × 0.08) × (1 + sharpness × 0.25)
-         ─────────────────────────────   ─────────────────────
-                 base damage                  multiplier
 ```
 
-Example:
-- Speed: 5, Mass: 20, Sharpness (damage stat): 15
-- Base = (5 × 0.3) + (20 × 0.08) = 1.5 + 1.6 = 3.1
-- Multiplier = 1 + (15 × 0.25) = 4.75
-- **Total = 3.1 × 4.75 ≈ 15 damage**
+Speed is constant (5), so mass and sharpness are what matter.
 
----
+## Key Values
+
+```typescript
+// lib/physics/constants.ts
+
+PHYSICS = {
+  INITIAL_SPEED: 5,      // Blobs always move at speed 5
+  BLOB_SCALE: 0.5,       // Drawing shrinks 50% in arena
+}
+
+STATS = {
+  BASE_HP: 50,           // Everyone starts with at least 50
+  HP_MIN: 30,            // Minimum HP (tiny shapes)
+  HP_MAX: 200,           // Maximum HP (huge shapes)
+  SHARP_ANGLE_THRESHOLD: 90,  // Corners < 90° count as "sharp"
+}
+
+COMBAT = {
+  MIN_IMPACT_VELOCITY: 2,     // Below this, no damage
+  SHARPNESS_FACTOR: 0.25,     // How much sharpness multiplies damage
+}
+```
 
 ## Battle Flow
 
-```typescript
-// 1. Create blobs from strokes
-const playerBlob = createBlobBody(myStrokes, { x, y, scale: 0.5 });
+1. **Draw** → Player draws strokes (ink limit: 100)
+2. **Convert** → Strokes become a physics body
+3. **Calculate** → Shape determines mass, damage, HP
+4. **Launch** → Blobs start on opposite sides
+5. **Bounce** → Constant speed, bounce off walls
+6. **Collide** → Both blobs take damage on impact
+7. **Win** → First to 0 HP loses
 
-// 2. Launch them at each other
-Matter.Body.setVelocity(playerBlob.body, { x: 5, y: 0 });
+## Power-Ups
 
-// 3. Keep speed constant (like Pong)
-Matter.Events.on(engine, 'afterUpdate', () => {
-  normalizeSpeed(playerBlob.body, 5);  // Always speed 5
-  normalizeSpeed(opponentBlob.body, 5);
-});
+Spawn when any blob drops below HP thresholds (160, 120, 80, 40):
 
-// 4. On collision, both take damage
-Matter.Events.on(engine, 'collisionStart', (event) => {
-  // Player damages opponent based on player's stats
-  // Opponent damages player based on opponent's stats
-});
+| Power-Up | Effect |
+|----------|--------|
+| 💀 Damage | 2× damage multiplier |
+| 💚 Heal | +20 HP instantly |
+| 🛡️ Shield | Block next hit |
+| ⚡ Regen | Heal on wall bounces |
 
-// 5. First to 0 HP loses
+## Files
+
 ```
-
----
-
-## Key Functions
-
-### `calculateBlobStats(body, strokes) → BlobStats`
-
-Analyzes a Matter.js body to determine:
-- **Mass**: Area of convex hull (Shoelace formula)
-- **Damage**: Count corners with angles < 90° and < 60°
-- **HP**: Base + ink used + area bonus
-- **Stability**: How symmetric the shape is
-
-### `createBlobBody(strokes, options) → BlobBody`
-
-Converts player drawing to physics body:
-1. Merge all stroke points
-2. Simplify path (Douglas-Peucker)
-3. Create convex hull (Graham scan)
-4. Scale and center
-5. Create Matter.js body
-6. Calculate stats
-
-### `calculateCollisionDamage(attacker, attackerStats, defender) → number`
-
-Calculates damage on collision:
-1. Get relative velocity between bodies
-2. If too slow, no damage
-3. Calculate base damage from speed + mass
-4. Apply sharpness multiplier
-5. Return rounded damage
-
----
-
-## Geometry Helpers
-
-| Function | What it does |
-|----------|--------------|
-| `calculateArea(points)` | Shoelace formula for polygon area |
-| `countSharpCorners(points, threshold)` | Count angles below threshold |
-| `simplifyPath(points, tolerance)` | Douglas-Peucker path reduction |
-| `convexHull(points)` | Graham scan for outer boundary |
-| `calculateSymmetry(points)` | Distance variance from centroid |
-
----
+lib/physics/
+├── constants.ts      # All tunable values
+├── createBlob.ts     # Strokes → physics body
+├── calculateStats.ts # Body → stats
+├── combat.ts         # Damage calculation
+└── geometry.ts       # Math helpers
+```
 
 ## That's It
 
-Simple system:
-1. **Draw** → strokes stored as points
-2. **Convert** → strokes become physics body
-3. **Calculate** → body shape determines stats
-4. **Battle** → constant speed, bounce off walls
-5. **Damage** → on collision, both take hits
-6. **Win** → reduce opponent HP to 0
-
-Shape matters. Sharp hurts. Big survives.
-
+Draw. Stats calculated from shape. Blobs bounce and fight. First to 0 HP loses.
