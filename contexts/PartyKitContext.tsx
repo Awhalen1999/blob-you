@@ -50,15 +50,25 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
   const [battleSeed, setBattleSeed] = useState<number | null>(null);
   const [opponentLeft, setOpponentLeft] = useState<PlayerRole | null>(null);
 
-  const send = useCallback((message: ClientMessage) => {
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      log('send', message.type);
-      socketRef.current.send(JSON.stringify(message));
+  const send = useCallback((message: ClientMessage): boolean => {
+    const socket = socketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      log('send', 'dropped_not_connected', { type: message.type });
+      return false;
     }
+    log('send', message.type);
+    socket.send(JSON.stringify(message));
+    return true;
   }, []);
 
   const handleMessage = useCallback((event: MessageEvent) => {
-    const msg = JSON.parse(event.data) as ServerMessage;
+    let msg: ServerMessage;
+    try {
+      msg = JSON.parse(event.data) as ServerMessage;
+    } catch {
+      log('recv', 'invalid_json', { raw: String(event.data).slice(0, 100) });
+      return;
+    }
     log('recv', msg.type);
 
     switch (msg.type) {
@@ -173,42 +183,58 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
 
   const connect = useCallback(
     (roomCode: string, playerName: string) => {
+      // Clean up existing connection first
       if (socketRef.current) {
         socketRef.current.close();
+        socketRef.current = null;
       }
 
       log('send', 'connecting', { room: roomCode });
       setStatus('connecting');
       setError(null);
+      setOpponentLeft(null);
 
       const socket = new PartySocket({
         host: PARTYKIT_HOST,
         room: roomCode,
       });
 
+      // CRITICAL: Assign socket to ref BEFORE adding event listeners
+      // This ensures send() works in the open handler
+      socketRef.current = socket;
+
       socket.addEventListener('open', () => {
         log('recv', 'connected');
-        send({ type: 'join', name: playerName });
+        // Send join message directly on this socket instance
+        // to avoid any ref timing issues
+        if (socket.readyState === WebSocket.OPEN) {
+          log('send', 'join');
+          socket.send(JSON.stringify({ type: 'join', name: playerName }));
+        }
       });
 
       socket.addEventListener('message', handleMessage);
 
       socket.addEventListener('close', () => {
         log('recv', 'disconnected');
-        setStatus('disconnected');
-        setRole(null);
-        setRoomState(null);
+        // Only update state if this is still the active socket
+        if (socketRef.current === socket) {
+          setStatus('disconnected');
+          setRole(null);
+          setRoomState(null);
+        }
       });
 
       socket.addEventListener('error', () => {
         log('recv', 'error');
-        setError('Connection failed');
-        setStatus('error');
+        // Only update state if this is still the active socket
+        if (socketRef.current === socket) {
+          setError('Connection failed');
+          setStatus('error');
+        }
       });
-
-      socketRef.current = socket;
     },
-    [send, handleMessage]
+    [handleMessage]
   );
 
   const disconnect = useCallback(() => {
@@ -230,10 +256,13 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sendLobbyReady = useCallback(() => {
-    send({ type: 'lobby_ready' });
+    // Guard: must have role and be connected
+    if (!role) return;
+    const sent = send({ type: 'lobby_ready' });
+    if (!sent) return;
     // Update own state immediately since server doesn't echo back to sender
     setRoomState((prev) => {
-      if (!prev || !role) return prev;
+      if (!prev) return prev;
       return role === 'host'
         ? { ...prev, hostLobbyReady: true }
         : { ...prev, guestLobbyReady: true };
@@ -241,10 +270,13 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
   }, [send, role]);
 
   const sendLobbyUnready = useCallback(() => {
-    send({ type: 'lobby_unready' });
+    // Guard: must have role and be connected
+    if (!role) return;
+    const sent = send({ type: 'lobby_unready' });
+    if (!sent) return;
     // Update own state immediately since server doesn't echo back to sender
     setRoomState((prev) => {
-      if (!prev || !role) return prev;
+      if (!prev) return prev;
       return role === 'host'
         ? { ...prev, hostLobbyReady: false }
         : { ...prev, guestLobbyReady: false };
@@ -253,16 +285,20 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
 
   const sendReady = useCallback(
     (strokes: Stroke[]) => {
+      // Guard: must be connected
       send({ type: 'ready', strokes });
     },
     [send]
   );
 
   const sendRematchRequest = useCallback(() => {
-    send({ type: 'rematch_request' });
+    // Guard: must have role and be connected
+    if (!role) return;
+    const sent = send({ type: 'rematch_request' });
+    if (!sent) return;
     // Optimistic update - immediately reflect our rematch request
     setRoomState((prev) => {
-      if (!prev || !role) return prev;
+      if (!prev) return prev;
       return role === 'host'
         ? { ...prev, hostRematchRequested: true }
         : { ...prev, guestRematchRequested: true };

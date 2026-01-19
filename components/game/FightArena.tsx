@@ -170,10 +170,12 @@ export default function FightArena() {
   /** Check HP thresholds and spawn power-ups */
   const checkPowerUpSpawn = useCallback(
     (newHp: number) => {
+      // Check ALL thresholds (not else-if) to handle large HP drops
+      // spawnPowerUp internally guards against duplicate spawns via triggeredThresholdsRef
+      if (newHp <= POWERUP.TRIGGER_HP_1) spawnPowerUp(POWERUP.TRIGGER_HP_1);
+      if (newHp <= POWERUP.TRIGGER_HP_2) spawnPowerUp(POWERUP.TRIGGER_HP_2);
+      if (newHp <= POWERUP.TRIGGER_HP_3) spawnPowerUp(POWERUP.TRIGGER_HP_3);
       if (newHp <= POWERUP.TRIGGER_HP_4) spawnPowerUp(POWERUP.TRIGGER_HP_4);
-      else if (newHp <= POWERUP.TRIGGER_HP_3) spawnPowerUp(POWERUP.TRIGGER_HP_3);
-      else if (newHp <= POWERUP.TRIGGER_HP_2) spawnPowerUp(POWERUP.TRIGGER_HP_2);
-      else if (newHp <= POWERUP.TRIGGER_HP_1) spawnPowerUp(POWERUP.TRIGGER_HP_1);
     },
     [spawnPowerUp]
   );
@@ -213,6 +215,12 @@ export default function FightArena() {
     // For this client: "my" blob uses my strokes, but position depends on role
     const npc = isMultiplayer ? null : getRandomNPC();
 
+    // Defensive: ensure NPC exists for offline mode
+    if (!isMultiplayer && !npc) {
+      console.error('[FightArena] Failed to load NPC');
+      return cleanup;
+    }
+
     let leftStrokes, rightStrokes, leftColor, rightColor, leftLabel: string, rightLabel: string;
     let myBlobIsLeft: boolean;
 
@@ -236,15 +244,18 @@ export default function FightArena() {
       }
       leftLabel = myBlobIsLeft ? 'player' : 'opponent';
       rightLabel = myBlobIsLeft ? 'opponent' : 'player';
-    } else {
+    } else if (npc) {
       // NPC mode: player on left, NPC on right
       leftStrokes = myStrokes;
-      rightStrokes = npc!.strokes;
+      rightStrokes = npc.strokes;
       leftColor = '#4ade80';
-      rightColor = npc!.color;
+      rightColor = npc.color;
       leftLabel = 'player';
       rightLabel = 'opponent';
       myBlobIsLeft = true;
+    } else {
+      // Should never reach here due to guard above, but satisfy TypeScript
+      return cleanup;
     }
 
     // Create left blob (always spawns on left side)
@@ -265,30 +276,28 @@ export default function FightArena() {
       color: rightColor,
     });
 
+    // Defensive: ensure both blobs were created successfully
+    if (!leftBlob || !rightBlob) {
+      console.error('[FightArena] Failed to create blob bodies', { leftBlob: !!leftBlob, rightBlob: !!rightBlob });
+      return cleanup;
+    }
+
     // Assign bodies to refs based on which is "mine"
     if (myBlobIsLeft) {
-      if (leftBlob) {
-        playerBodyRef.current = leftBlob.body;
-        playerStatsRef.current = leftBlob.stats;
-      }
-      if (rightBlob) {
-        opponentBodyRef.current = rightBlob.body;
-        opponentStatsRef.current = rightBlob.stats;
-      }
+      playerBodyRef.current = leftBlob.body;
+      playerStatsRef.current = leftBlob.stats;
+      opponentBodyRef.current = rightBlob.body;
+      opponentStatsRef.current = rightBlob.stats;
     } else {
-      if (rightBlob) {
-        playerBodyRef.current = rightBlob.body;
-        playerStatsRef.current = rightBlob.stats;
-      }
-      if (leftBlob) {
-        opponentBodyRef.current = leftBlob.body;
-        opponentStatsRef.current = leftBlob.stats;
-      }
+      playerBodyRef.current = rightBlob.body;
+      playerStatsRef.current = rightBlob.stats;
+      opponentBodyRef.current = leftBlob.body;
+      opponentStatsRef.current = leftBlob.stats;
     }
 
     // Add blobs to world
-    if (leftBlob) Matter.Composite.add(engine.world, leftBlob.body);
-    if (rightBlob) Matter.Composite.add(engine.world, rightBlob.body);
+    Matter.Composite.add(engine.world, leftBlob.body);
+    Matter.Composite.add(engine.world, rightBlob.body);
 
     // Set initial velocities using seeded random (deterministic)
     const leftAngle = rng.range(-0.25, 0.25);
@@ -322,9 +331,10 @@ export default function FightArena() {
         setOpponentHp(opponentStatsRef.current.hp);
         setOpponentMaxHp(opponentStatsRef.current.maxHp);
       }
+      // npc is guaranteed non-null for offline mode due to guard above
       const displayName = isMultiplayer
         ? (opponent?.username || 'Opponent')
-        : npc!.name;
+        : (npc?.name || 'Opponent');
       setOpponentName(displayName);
     });
 
@@ -361,10 +371,13 @@ export default function FightArena() {
                 }
               } else if (type === 'heal') {
                 if (picker === 'player') {
-                  setPlayerHp((prev) => Math.min(prev + POWERUP.HEAL_AMOUNT, playerMaxHp));
+                  // Use stats ref for maxHp to avoid stale closure
+                  const maxHp = playerStatsRef.current?.maxHp ?? 100;
+                  setPlayerHp((prev) => Math.min(prev + POWERUP.HEAL_AMOUNT, maxHp));
                   setPlayerPowerUps((prev) => [...prev, 'heal']);
                 } else {
-                  setOpponentHp((prev) => Math.min(prev + POWERUP.HEAL_AMOUNT, opponentMaxHp));
+                  const maxHp = opponentStatsRef.current?.maxHp ?? 100;
+                  setOpponentHp((prev) => Math.min(prev + POWERUP.HEAL_AMOUNT, maxHp));
                   setOpponentPowerUps((prev) => [...prev, 'heal']);
                 }
               } else if (type === 'shield') {
@@ -392,10 +405,12 @@ export default function FightArena() {
         // Wall collision - regen healing
         if (labels.includes('wall')) {
           if (labels.includes('player') && playerRegenRef.current) {
-            setPlayerHp((prev) => Math.min(prev + POWERUP.REGEN_HEAL_AMOUNT, playerMaxHp));
+            const maxHp = playerStatsRef.current?.maxHp ?? 100;
+            setPlayerHp((prev) => Math.min(prev + POWERUP.REGEN_HEAL_AMOUNT, maxHp));
           }
           if (labels.includes('opponent') && opponentRegenRef.current) {
-            setOpponentHp((prev) => Math.min(prev + POWERUP.REGEN_HEAL_AMOUNT, opponentMaxHp));
+            const maxHp = opponentStatsRef.current?.maxHp ?? 100;
+            setOpponentHp((prev) => Math.min(prev + POWERUP.REGEN_HEAL_AMOUNT, maxHp));
           }
           continue;
         }
@@ -475,7 +490,7 @@ export default function FightArena() {
     Matter.Render.run(render);
 
     return cleanup;
-  }, [myStrokes, opponentStrokes, gameMode, opponent?.username, isHost, battleSeed, isMultiplayer, cleanup, playerMaxHp, opponentMaxHp, checkPowerUpSpawn]);
+  }, [myStrokes, opponentStrokes, gameMode, opponent?.username, isHost, battleSeed, isMultiplayer, cleanup, checkPowerUpSpawn]);
 
   /** Handle battle end */
   useEffect(() => {

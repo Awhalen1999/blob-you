@@ -2,6 +2,33 @@ import type * as Party from 'partykit/server';
 import type { Stroke } from '@/types/game';
 import type { ClientMessage, ServerMessage, RoomState, PlayerRole } from './types';
 
+/** Validate stroke data to prevent crashes from malformed input */
+function isValidStroke(stroke: unknown): stroke is Stroke {
+  if (!stroke || typeof stroke !== 'object') return false;
+  const s = stroke as Record<string, unknown>;
+  if (!Array.isArray(s.points)) return false;
+  if (typeof s.timestamp !== 'number') return false;
+  // Validate points array (limit size to prevent abuse)
+  if (s.points.length > 10000) return false;
+  for (const point of s.points) {
+    if (!point || typeof point !== 'object') return false;
+    const p = point as Record<string, unknown>;
+    if (typeof p.x !== 'number' || typeof p.y !== 'number') return false;
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return false;
+  }
+  return true;
+}
+
+function validateStrokes(strokes: unknown): Stroke[] | null {
+  if (!Array.isArray(strokes)) return null;
+  // Limit total strokes to prevent abuse
+  if (strokes.length > 100) return null;
+  for (const stroke of strokes) {
+    if (!isValidStroke(stroke)) return null;
+  }
+  return strokes as Stroke[];
+}
+
 function createInitialState(): RoomState {
   return {
     hostId: null,
@@ -132,7 +159,12 @@ export default class BlobRoom implements Party.Server {
     }
   }
 
-  private handleJoin(conn: Party.Connection, name: string) {
+  private handleJoin(conn: Party.Connection, name: unknown) {
+    // Validate name defensively
+    const playerName = typeof name === 'string' && name.length > 0 && name.length <= 50
+      ? name.trim()
+      : 'Player';
+
     if (this.state.hostId && this.state.guestId) {
       this.log('room_full', { connId: conn.id });
       this.send(conn, { type: 'room_full' });
@@ -143,15 +175,15 @@ export default class BlobRoom implements Party.Server {
 
     if (role === 'host') {
       this.state.hostId = conn.id;
-      this.state.hostName = name;
+      this.state.hostName = playerName;
     } else {
       this.state.guestId = conn.id;
-      this.state.guestName = name;
+      this.state.guestName = playerName;
     }
 
-    this.log('join', { connId: conn.id, role, name });
+    this.log('join', { connId: conn.id, role, name: playerName });
     this.send(conn, { type: 'welcome', role, roomState: this.state });
-    this.broadcast({ type: 'player_joined', role, name }, conn.id);
+    this.broadcast({ type: 'player_joined', role, name: playerName }, conn.id);
   }
 
   private handleLobbyReady(conn: Party.Connection) {
@@ -183,19 +215,27 @@ export default class BlobRoom implements Party.Server {
     this.broadcast({ type: 'player_lobby_unready', role }, conn.id);
   }
 
-  private handleReady(conn: Party.Connection, strokes: Stroke[]) {
+  private handleReady(conn: Party.Connection, strokes: unknown) {
     const role = this.getRole(conn.id);
     if (!role) return;
 
-    if (role === 'host') {
-      this.state.hostReady = true;
-      this.state.hostStrokes = strokes;
-    } else {
-      this.state.guestReady = true;
-      this.state.guestStrokes = strokes;
+    // Validate strokes data defensively
+    const validatedStrokes = validateStrokes(strokes);
+    if (!validatedStrokes) {
+      this.log('error', { type: 'invalid_strokes', connId: conn.id });
+      this.send(conn, { type: 'error', message: 'Invalid stroke data' });
+      return;
     }
 
-    this.log('ready', { role, strokeCount: strokes.length });
+    if (role === 'host') {
+      this.state.hostReady = true;
+      this.state.hostStrokes = validatedStrokes;
+    } else {
+      this.state.guestReady = true;
+      this.state.guestStrokes = validatedStrokes;
+    }
+
+    this.log('ready', { role, strokeCount: validatedStrokes.length });
     this.broadcast({ type: 'player_ready', role }, conn.id);
     this.checkBattleStart();
   }
