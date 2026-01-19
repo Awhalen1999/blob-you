@@ -224,6 +224,9 @@ export default function DrawingCanvas() {
   };
 
   const handleBack = () => {
+    if (isMultiplayer) {
+      partyActions.disconnect();
+    }
     reset();
   };
 
@@ -243,7 +246,7 @@ export default function DrawingCanvas() {
         icon={<ArrowLeft className="w-4 h-4" />}
         className="absolute top-4 left-4 z-10"
       >
-        Back
+        {isMultiplayer ? 'Leave Lobby' : 'Main Menu'}
       </Button>
 
       <div className="flex flex-col items-center justify-center gap-md h-full">

@@ -79,8 +79,8 @@ export default function BattleResult({
         <div className="flex gap-4">
           {isMultiplayer ? (
             <>
-              <Button 
-                onClick={onRematch} 
+              <Button
+                onClick={onRematch}
                 variant={myRematchRequested ? 'secondary' : 'danger'}
                 size="lg"
                 disabled={myRematchRequested || bothReady}
@@ -89,7 +89,7 @@ export default function BattleResult({
               </Button>
 
               <Button onClick={onMainMenu} variant="primary" size="lg">
-                Main Menu
+                Leave Lobby
               </Button>
             </>
           ) : (

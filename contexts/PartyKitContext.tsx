@@ -15,6 +15,7 @@ export type PartyKitState = {
   roomState: RoomState | null;
   error: string | null;
   battleSeed: number | null;
+  opponentLeft: PlayerRole | null;
 };
 
 export type PartyKitActions = {
@@ -24,6 +25,7 @@ export type PartyKitActions = {
   sendLobbyUnready: () => void;
   sendReady: (strokes: Stroke[]) => void;
   sendRematchRequest: () => void;
+  clearOpponentLeft: () => void;
 };
 
 type PartyKitContextValue = [PartyKitState, PartyKitActions];
@@ -46,6 +48,7 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [battleSeed, setBattleSeed] = useState<number | null>(null);
+  const [opponentLeft, setOpponentLeft] = useState<PlayerRole | null>(null);
 
   const send = useCallback((message: ClientMessage) => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -75,11 +78,12 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
         break;
 
       case 'player_left':
+        setOpponentLeft(msg.role);
         setRoomState((prev) => {
           if (!prev) return prev;
           return msg.role === 'host'
-            ? { ...prev, hostId: null, hostName: null, hostReady: false, hostStrokes: null }
-            : { ...prev, guestId: null, guestName: null, guestReady: false, guestStrokes: null };
+            ? { ...prev, hostId: null, hostName: null, hostReady: false, hostStrokes: null, phase: 'waiting' }
+            : { ...prev, guestId: null, guestName: null, guestReady: false, guestStrokes: null, phase: 'waiting' };
         });
         break;
 
@@ -218,6 +222,11 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
     setRoomState(null);
     setError(null);
     setBattleSeed(null);
+    setOpponentLeft(null);
+  }, []);
+
+  const clearOpponentLeft = useCallback(() => {
+    setOpponentLeft(null);
   }, []);
 
   const sendLobbyReady = useCallback(() => {
@@ -268,8 +277,8 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const state: PartyKitState = { status, role, roomState, error, battleSeed };
-  const actions: PartyKitActions = { connect, disconnect, sendLobbyReady, sendLobbyUnready, sendReady, sendRematchRequest };
+  const state: PartyKitState = { status, role, roomState, error, battleSeed, opponentLeft };
+  const actions: PartyKitActions = { connect, disconnect, sendLobbyReady, sendLobbyUnready, sendReady, sendRematchRequest, clearOpponentLeft };
 
   return (
     <PartyKitContext.Provider value={[state, actions]}>

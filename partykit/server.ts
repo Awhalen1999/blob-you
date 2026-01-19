@@ -94,28 +94,12 @@ export default class BlobRoom implements Party.Server {
 
     if (!role) return;
 
-    if (role === 'host') {
-      this.state.hostId = null;
-      this.state.hostName = null;
-      this.state.hostLobbyReady = false;
-      this.state.hostReady = false;
-      this.state.hostStrokes = null;
-      this.state.hostRematchRequested = false;
-    } else {
-      this.state.guestId = null;
-      this.state.guestName = null;
-      this.state.guestLobbyReady = false;
-      this.state.guestReady = false;
-      this.state.guestStrokes = null;
-      this.state.guestRematchRequested = false;
-    }
-
+    // Broadcast before clearing state so message goes out
     this.broadcast({ type: 'player_left', role });
 
-    if (this.state.phase !== 'waiting') {
-      this.state.phase = 'waiting';
-      this.log('phase_change', { newPhase: 'waiting', reason: 'player_left' });
-    }
+    // Anyone leaving = reset entire room (close it)
+    this.state = createInitialState();
+    this.log('room_closed', { reason: `${role}_left` });
   }
 
   onMessage(message: string, sender: Party.Connection) {

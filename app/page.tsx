@@ -31,7 +31,7 @@ export default function Home() {
   const [joinCode, setJoinCode] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const { phase, setPhase, setGameMode, setRoomCode, setIsHost, setOpponent, setOpponentStrokes, setBattleSeed } = useGameStore();
+  const { phase, setPhase, setGameMode, setRoomCode, setIsHost, setOpponent, setOpponentStrokes, setBattleSeed, reset } = useGameStore();
   const [partyState, partyActions] = usePartyKitContext();
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'Player';
@@ -67,6 +67,36 @@ export default function Home() {
       setOpponent({ id: 'opponent', username: opponentName, avatar: '' });
     }
   }, [partyState.roomState, partyState.role, setOpponent]);
+
+  // Handle opponent leaving - anyone leaving = both go to main menu
+  useEffect(() => {
+    if (!partyState.opponentLeft) return;
+
+    // Clear flag first to prevent re-triggers
+    partyActions.clearOpponentLeft();
+
+    // Anyone leaving = disconnect and go to main menu
+    partyActions.disconnect();
+    reset();
+    setTimeout(() => {
+      setMenuView('main');
+      setRoomCodeLocal('');
+      setJoinCode('');
+      setCopied(false);
+    }, 0);
+  }, [partyState.opponentLeft, partyActions, reset]);
+
+  // Reset menu view when disconnected (handles when YOU leave)
+  useEffect(() => {
+    if (partyState.status === 'disconnected' && menuView === 'lobby') {
+      setTimeout(() => {
+        setMenuView('main');
+        setRoomCodeLocal('');
+        setJoinCode('');
+        setCopied(false);
+      }, 0);
+    }
+  }, [partyState.status, menuView]);
 
   if (loading) {
     return <LoadingScreen />;

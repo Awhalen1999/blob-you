@@ -544,8 +544,18 @@ export default function FightArena() {
 
   const handleMainMenu = () => {
     cleanup();
+    if (isMultiplayer) {
+      partyActions.disconnect();
+    }
     reset();
   };
+
+  // Stop battle immediately when opponent leaves
+  useEffect(() => {
+    if (isMultiplayer && partyState.opponentLeft) {
+      cleanup();
+    }
+  }, [isMultiplayer, partyState.opponentLeft, cleanup]);
 
   return (
     <div className="relative w-full h-full min-h-screen flex flex-col items-center justify-center">
@@ -556,7 +566,7 @@ export default function FightArena() {
         icon={<ArrowLeft className="w-4 h-4" />}
         className="absolute top-4 left-4 z-10"
       >
-        Back
+        {isMultiplayer ? 'Leave Lobby' : 'Main Menu'}
       </Button>
 
       {/* Health bars */}
