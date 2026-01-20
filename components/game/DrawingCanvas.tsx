@@ -24,8 +24,6 @@ export default function DrawingCanvas() {
     addMyStroke,
     inkRemaining,
     decreaseInk,
-    drawingTimeLeft,
-    setDrawingTimeLeft,
     gameMode,
     reset,
     setPhase,
@@ -54,6 +52,13 @@ export default function DrawingCanvas() {
       });
     }
   }, [inkRemaining, isDrawing]);
+
+  // Reset ready state when strokes cleared (handles rematch)
+  useEffect(() => {
+    if (myStrokes.length === 0 && inkRemaining === 100 && isReady) {
+      queueMicrotask(() => setIsReady(false));
+    }
+  }, [myStrokes.length, inkRemaining, isReady]);
 
   // Calculate ink used for current stroke in real-time
   const calculateLiveInk = useCallback((points: Point[]) => {
@@ -104,31 +109,6 @@ export default function DrawingCanvas() {
   useEffect(() => {
     redrawCanvas();
   }, [redrawCanvas]);
-
-  // Timer countdown
-  useEffect(() => {
-    if (drawingTimeLeft <= 0 || isReady) return;
-
-    const interval = setInterval(() => {
-      setDrawingTimeLeft(drawingTimeLeft - 1);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [drawingTimeLeft, setDrawingTimeLeft, isReady]);
-
-  // Auto-ready when timer hits 0
-  useEffect(() => {
-    if (drawingTimeLeft === 0 && !isReady) {
-      requestAnimationFrame(() => {
-        setIsReady(true);
-        if (gameMode === 'npc') {
-          setPhase('fighting');
-        } else if (gameMode === 'multiplayer') {
-          partyActions.sendReady(myStrokes);
-        }
-      });
-    }
-  }, [drawingTimeLeft, isReady, gameMode, setPhase, partyActions, myStrokes]);
 
   // Start drawing
   const startDrawing = (point: Point) => {
@@ -237,8 +217,6 @@ export default function DrawingCanvas() {
   const canSubmit = hasMinimumInk && !isReady;
 
   // Status flags
-  const timerLow = drawingTimeLeft <= 10;
-  const timerCritical = drawingTimeLeft <= 5;
   const inkLow = liveInk <= 30;
   const inkCritical = liveInk <= 15;
 
@@ -256,23 +234,7 @@ export default function DrawingCanvas() {
       </Button>
 
       <div className="flex flex-col items-center justify-center gap-md h-full">
-        {/* Timer - Nintendo style */}
-      <div
-        className={`
-          px-4 py-2 rounded-md border-2 font-bold text-2xl font-mono
-          transition-all duration-200
-          ${timerCritical
-            ? 'bg-red-500/90 border-red-300 text-white animate-pulse'
-            : timerLow
-              ? 'bg-orange-500/80 border-orange-300 text-white animate-[shake_0.5s_ease-in-out_infinite]'
-              : 'bg-black/50 border-white/30 text-white'
-          }
-        `}
-      >
-        {drawingTimeLeft}
-      </div>
-
-      {/* Main drawing area */}
+        {/* Main drawing area */}
       <div className="flex gap-md items-stretch">
         {/* Canvas */}
         <canvas
@@ -289,7 +251,7 @@ export default function DrawingCanvas() {
           className={`
             bg-white rounded-md border-4 cursor-crosshair touch-none
             ${isReady ? 'opacity-70 pointer-events-none' : ''}
-            ${inkCritical ? 'border-red-400' : inkLow ? 'border-orange-400' : 'border-white/40'}
+            ${inkCritical ? 'border-red-400' : inkLow ? 'border-orange-400' : 'border-black/40'}
           `}
           style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
         />

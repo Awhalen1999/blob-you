@@ -92,7 +92,6 @@ export default function FightArena() {
     setPhase,
     clearStrokes,
     resetInk,
-    setDrawingTimeLeft,
     setBattleSeed,
   } = useGameStore();
 
@@ -564,7 +563,6 @@ export default function FightArena() {
         setPowerUps([]);
         clearStrokes();
         resetInk();
-        setDrawingTimeLeft(15);
         setBattleSeed(null);
         setPhase('drawing');
       }, 0);
@@ -587,7 +585,6 @@ export default function FightArena() {
       setPowerUps([]);
       clearStrokes();
       resetInk();
-      setDrawingTimeLeft(15);
       setBattleSeed(null);
       setPhase('drawing');
     }

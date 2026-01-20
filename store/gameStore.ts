@@ -15,7 +15,6 @@ type GameStore = {
   myStrokes: Stroke[];
   opponentStrokes: Stroke[];
   inkRemaining: number;
-  drawingTimeLeft: number;
 
   // Battle
   battleSeed: number | null;
@@ -32,14 +31,12 @@ type GameStore = {
   clearStrokes: () => void;
   decreaseInk: (amount: number) => void;
   resetInk: () => void;
-  setDrawingTimeLeft: (time: number) => void;
   setBattleSeed: (seed: number | null) => void;
   setWinner: (winner: 'me' | 'opponent' | null) => void;
   reset: () => void;
 };
 
 const INITIAL_INK = 100;
-const DRAWING_TIME = 15;
 
 const initialState = {
   phase: 'menu' as GamePhase,
@@ -50,7 +47,6 @@ const initialState = {
   myStrokes: [] as Stroke[],
   opponentStrokes: [] as Stroke[],
   inkRemaining: INITIAL_INK,
-  drawingTimeLeft: DRAWING_TIME,
   battleSeed: null,
   winner: null,
 };
@@ -70,7 +66,6 @@ export const useGameStore = create<GameStore>((set) => ({
 
   decreaseInk: (amount) => set((state) => ({ inkRemaining: Math.max(0, state.inkRemaining - amount) })),
   resetInk: () => set({ inkRemaining: INITIAL_INK }),
-  setDrawingTimeLeft: (time) => set({ drawingTimeLeft: time }),
 
   setBattleSeed: (seed) => set({ battleSeed: seed }),
   setWinner: (winner) => set({ winner }),

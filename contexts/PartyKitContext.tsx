@@ -56,7 +56,7 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
       log('send', 'dropped_not_connected', { type: message.type });
       return false;
     }
-    log('send', message.type);
+      log('send', message.type);
     socket.send(JSON.stringify(message));
     return true;
   }, []);
@@ -219,9 +219,9 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
         log('recv', 'disconnected');
         // Only update state if this is still the active socket
         if (socketRef.current === socket) {
-          setStatus('disconnected');
-          setRole(null);
-          setRoomState(null);
+        setStatus('disconnected');
+        setRole(null);
+        setRoomState(null);
         }
       });
 
@@ -229,8 +229,8 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
         log('recv', 'error');
         // Only update state if this is still the active socket
         if (socketRef.current === socket) {
-          setError('Connection failed');
-          setStatus('error');
+        setError('Connection failed');
+        setStatus('error');
         }
       });
     },
