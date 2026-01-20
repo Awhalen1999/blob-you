@@ -27,7 +27,7 @@ export default function BattleResult({
         {/* Result text - retro Nintendo style */}
         <h1
           className={`
-            text-7xl font-black uppercase tracking-[0.1em]
+            text-7xl font-black uppercase tracking-wider
             ${isVictory ? 'text-green-400' : 'text-red-500'}
           `}
           style={{

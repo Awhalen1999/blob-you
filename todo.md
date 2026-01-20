@@ -1,10 +1,8 @@
 P1
-- just set health to 200 (for now) this is some match using the mass value to determine health but we cap it at 200
-- if timer runs out ready button breaks drawing canvas
+- actually use mass to calculate health - values mass more than sharpness can balance more instead of just setting to 200 when passes a certain number
 
 P2
 - update UI for ready state in drawing canvas
-- handle case where user does not draw anything
 
 P3
 - update match code / match room UI slightly
@@ -15,4 +13,3 @@ Nice to haves:
 - chat
 - sharpness nerf
 - bomb/damaging power up?
-- actually use mass to calculate health - values mass more than sharpness can balance more
