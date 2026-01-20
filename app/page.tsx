@@ -12,6 +12,7 @@ import DrawingCanvas from '@/components/game/DrawingCanvas';
 import FightArena from '@/components/game/FightArena';
 import Button from '@/components/ui/Button';
 import { PartyStatus } from '@/components/ui/PartyStatus';
+import { HowToPlay } from '@/components/ui/HowToPlay';
 
 type MenuView = 'main' | 'lobby' | 'join';
 
@@ -112,6 +113,7 @@ export default function Home() {
       <>
         <DrawingCanvas />
         <PartyStatus />
+        <HowToPlay />
       </>
     );
   }
@@ -122,6 +124,7 @@ export default function Home() {
       <>
         <FightArena />
         <PartyStatus />
+        <HowToPlay />
       </>
     );
   }
@@ -333,6 +336,8 @@ export default function Home() {
       >
         Sign Out
       </Button>
+
+      <HowToPlay />
 
       <div className="transparent-bg w-full max-w-md mx-auto p-lg rounded-sm border border-white/20">
         <header className="mb-lg text-center">
