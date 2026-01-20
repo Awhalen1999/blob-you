@@ -20,8 +20,9 @@ export type BlobStats = {
   maxHp: number;
   stability: number;
   // Detailed breakdown
-  corners: number;
-  spikes: number;
+  edges: number;    // Gentle bends (90-120°)
+  corners: number;  // Sharp corners (<90°)
+  spikes: number;   // Dangerous spikes (<60°)
   area: number;
 };
 

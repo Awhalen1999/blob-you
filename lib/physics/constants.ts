@@ -41,13 +41,26 @@ export const STATS = {
   HP_MIN: 100,
 
   /** Sharpness thresholds (degrees) */
-  SHARP_ANGLE_THRESHOLD: 90,
-  SPIKE_ANGLE_THRESHOLD: 60,
+  EDGE_ANGLE_THRESHOLD: 135,  // Gentle bend (<135°)
+  SHARP_ANGLE_THRESHOLD: 90,  // Sharp corner (<90°)
+  SPIKE_ANGLE_THRESHOLD: 60,  // Dangerous spike (<60°)
 
   /** Damage from sharpness (glass cannon builds) */
   BASE_DAMAGE: 5,
-  DAMAGE_PER_SHARP: 3,
-  DAMAGE_PER_SPIKE: 5,
+  DAMAGE_PER_EDGE: 1,   // Gentle bends add a little
+  DAMAGE_PER_SHARP: 3,  // Sharp corners add more
+  DAMAGE_PER_SPIKE: 5,  // Spikes add the most
+
+  /** Stat color thresholds (for UI) */
+  DAMAGE_THRESHOLD_LOW: 8,    // Below = blue (weak)
+  DAMAGE_THRESHOLD_MED: 15,   // Above = orange (good)
+  DAMAGE_THRESHOLD_HIGH: 20,  // Above = red (great)
+  MASS_THRESHOLD_LOW: 20,     // Below = blue (light)
+  MASS_THRESHOLD_MED: 40,     // Above = orange (heavy)
+  MASS_THRESHOLD_HIGH: 55,    // Above = red (massive)
+  HP_THRESHOLD_LOW: 100,      // Below = blue (fragile)
+  HP_THRESHOLD_MED: 200,      // Above = orange (tanky)
+  HP_THRESHOLD_HIGH: 275,     // Above = red (massive tank)
 
   /** Stability */
   STABILITY_BASE: 100,
@@ -70,11 +83,11 @@ export const ARENA = {
 
 /** Power-up configuration */
 export const POWERUP = {
-  /** HP thresholds that trigger spawns */
-  TRIGGER_HP_1: 160,
-  TRIGGER_HP_2: 120,
-  TRIGGER_HP_3: 80,
-  TRIGGER_HP_4: 40,
+  /** HP thresholds that trigger spawns (% of maxHp remaining) */
+  TRIGGER_HP_PCT_1: 0.8,
+  TRIGGER_HP_PCT_2: 0.6,
+  TRIGGER_HP_PCT_3: 0.4,
+  TRIGGER_HP_PCT_4: 0.2,
 
   /** Visual */
   RADIUS: 15,

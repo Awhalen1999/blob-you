@@ -118,6 +118,7 @@ function createFallbackBlob(options: CreateBlobOptions): BlobBody {
     hp: 100,
     maxHp: 100,
     stability: 80,
+    edges: 0,
     corners: 0,
     spikes: 0,
     area: Math.round(Math.PI * radius * radius),

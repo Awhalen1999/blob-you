@@ -35,11 +35,18 @@ export function calculateBlobStats(body: Matter.Body, strokes: Stroke[]): BlobSt
   // HP: directly from mass (tank builds)
   const hp = Math.max(STATS.HP_MIN, Math.round(mass * STATS.HP_PER_MASS));
 
-  // Damage: based on sharp corners (glass cannon builds)
-  const sharpCorners = countSharpCorners(vertices, STATS.SHARP_ANGLE_THRESHOLD);
-  const spikeCorners = countSharpCorners(vertices, STATS.SPIKE_ANGLE_THRESHOLD);
+  // Damage: based on sharpness tiers (glass cannon builds)
+  // Count each tier: edges (90-120°), corners (<90°), spikes (<60°)
+  const allEdges = countSharpCorners(vertices, STATS.EDGE_ANGLE_THRESHOLD);  // < 120°
+  const sharpCorners = countSharpCorners(vertices, STATS.SHARP_ANGLE_THRESHOLD);  // < 90°
+  const spikeCorners = countSharpCorners(vertices, STATS.SPIKE_ANGLE_THRESHOLD);  // < 60°
+  
+  // Edges are those between 90-120° (allEdges minus sharp corners)
+  const edges = allEdges - sharpCorners;
+  
   const damage =
     STATS.BASE_DAMAGE +
+    edges * STATS.DAMAGE_PER_EDGE +
     sharpCorners * STATS.DAMAGE_PER_SHARP +
     spikeCorners * STATS.DAMAGE_PER_SPIKE;
 
@@ -54,6 +61,7 @@ export function calculateBlobStats(body: Matter.Body, strokes: Stroke[]): BlobSt
     maxHp: hp,
     stability,
     // Detailed breakdown for UI
+    edges,
     corners: sharpCorners,
     spikes: spikeCorners,
     area: Math.round(area),
@@ -78,14 +86,22 @@ export function previewStats(strokes: Stroke[]): Partial<BlobStats> {
   // Approximate mass from area
   const approxMass = Math.max(STATS.MASS_MIN, approxArea * STATS.MASS_MULTIPLIER);
 
+  const allEdges = countSharpCorners(allPoints, STATS.EDGE_ANGLE_THRESHOLD);
   const sharpCorners = countSharpCorners(allPoints, STATS.SHARP_ANGLE_THRESHOLD);
   const spikeCorners = countSharpCorners(allPoints, STATS.SPIKE_ANGLE_THRESHOLD);
+  const edges = allEdges - sharpCorners;
   const symmetry = calculateSymmetry(allPoints);
 
   return {
     hp: Math.max(STATS.HP_MIN, Math.round(approxMass * STATS.HP_PER_MASS)),
-    damage: Math.round(STATS.BASE_DAMAGE + sharpCorners * STATS.DAMAGE_PER_SHARP + spikeCorners * STATS.DAMAGE_PER_SPIKE),
+    damage: Math.round(
+      STATS.BASE_DAMAGE +
+      edges * STATS.DAMAGE_PER_EDGE +
+      sharpCorners * STATS.DAMAGE_PER_SHARP +
+      spikeCorners * STATS.DAMAGE_PER_SPIKE
+    ),
     stability: Math.round(symmetry * STATS.STABILITY_BASE),
+    edges,
     corners: sharpCorners,
     spikes: spikeCorners,
     area: Math.round(approxArea),

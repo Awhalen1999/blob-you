@@ -5,7 +5,7 @@ import Matter from 'matter-js';
 import { ArrowLeft, Info } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
 import { usePartyKitContext } from '@/contexts/PartyKitContext';
-import { ARENA, PHYSICS, POWERUP, POWERUP_BORDER_COLORS, POWERUP_COLORS, POWERUP_ICONS, POWERUP_LABELS } from '@/lib/physics/constants';
+import { ARENA, PHYSICS, POWERUP, POWERUP_BORDER_COLORS, POWERUP_COLORS, POWERUP_ICONS, POWERUP_LABELS, STATS } from '@/lib/physics/constants';
 import { createBlobBody } from '@/lib/physics/createBlob';
 import { createArenaWalls, calculateCollisionDamage } from '@/lib/physics/combat';
 import { getRandomNPC } from '@/lib/npc';
@@ -36,10 +36,36 @@ function PowerUpIndicator({ type }: { type: PowerUpType }) {
   );
 }
 
+// Color helpers based on stat thresholds
+function getDamageColor(damage: number): string {
+  if (damage >= STATS.DAMAGE_THRESHOLD_HIGH) return 'text-red-500';
+  if (damage >= STATS.DAMAGE_THRESHOLD_MED) return 'text-orange-400';
+  if (damage < STATS.DAMAGE_THRESHOLD_LOW) return 'text-blue-400';
+  return 'text-white/70';
+}
+
+function getMassColor(mass: number): string {
+  if (mass >= STATS.MASS_THRESHOLD_HIGH) return 'text-red-500';
+  if (mass >= STATS.MASS_THRESHOLD_MED) return 'text-orange-400';
+  if (mass < STATS.MASS_THRESHOLD_LOW) return 'text-blue-400';
+  return 'text-white/70';
+}
+
+function getHpColor(hp: number): string {
+  if (hp >= STATS.HP_THRESHOLD_HIGH) return 'text-red-500';
+  if (hp >= STATS.HP_THRESHOLD_MED) return 'text-orange-400';
+  if (hp <= STATS.HP_THRESHOLD_LOW) return 'text-blue-400';
+  return 'text-white/70';
+}
+
 function StatsTooltip({ stats, align = 'left' }: { stats: BlobStats | null; align?: 'left' | 'right' }) {
   const [isOpen, setIsOpen] = useState(false);
 
   if (!stats) return null;
+
+  const damageColor = getDamageColor(stats.damage);
+  const massColor = getMassColor(stats.mass);
+  const hpColor = getHpColor(stats.hp);
 
   return (
     <div className="relative flex items-center">
@@ -65,6 +91,10 @@ function StatsTooltip({ stats, align = 'left' }: { stats: BlobStats | null; alig
               <span className="text-white/90 font-mono">{stats.area.toLocaleString()}px²</span>
             </div>
             <div className="flex justify-between gap-4">
+              <span>Edges:</span>
+              <span className="text-white/90 font-mono">{stats.edges}</span>
+            </div>
+            <div className="flex justify-between gap-4">
               <span>Corners:</span>
               <span className="text-white/90 font-mono">{stats.corners}</span>
             </div>
@@ -75,15 +105,15 @@ function StatsTooltip({ stats, align = 'left' }: { stats: BlobStats | null; alig
             <div className="border-t border-white/10 pt-1 mt-1.5">
               <div className="flex justify-between gap-4">
                 <span>Mass:</span>
-                <span className="text-white/90 font-mono">{stats.mass}</span>
+                <span className={`font-mono font-bold ${massColor}`}>{stats.mass}</span>
               </div>
               <div className="flex justify-between gap-4">
                 <span>HP:</span>
-                <span className="text-green-400 font-mono">{stats.hp}</span>
+                <span className={`font-mono font-bold ${hpColor}`}>{stats.hp}</span>
               </div>
               <div className="flex justify-between gap-4">
                 <span>Damage:</span>
-                <span className="text-red-400 font-mono">{stats.damage}</span>
+                <span className={`font-mono font-bold ${damageColor}`}>{stats.damage}</span>
               </div>
             </div>
           </div>
@@ -225,13 +255,15 @@ export default function FightArena() {
 
   /** Check HP thresholds and spawn power-ups */
   const checkPowerUpSpawn = useCallback(
-    (newHp: number) => {
+    (newHp: number, maxHp: number) => {
       // Check ALL thresholds (not else-if) to handle large HP drops
       // spawnPowerUp internally guards against duplicate spawns via triggeredThresholdsRef
-      if (newHp <= POWERUP.TRIGGER_HP_1) spawnPowerUp(POWERUP.TRIGGER_HP_1);
-      if (newHp <= POWERUP.TRIGGER_HP_2) spawnPowerUp(POWERUP.TRIGGER_HP_2);
-      if (newHp <= POWERUP.TRIGGER_HP_3) spawnPowerUp(POWERUP.TRIGGER_HP_3);
-      if (newHp <= POWERUP.TRIGGER_HP_4) spawnPowerUp(POWERUP.TRIGGER_HP_4);
+      // Thresholds are % of maxHp: spawn at 80%, 60%, 40%, 20% remaining
+      const hpPct = newHp / maxHp;
+      if (hpPct <= POWERUP.TRIGGER_HP_PCT_1) spawnPowerUp(1);
+      if (hpPct <= POWERUP.TRIGGER_HP_PCT_2) spawnPowerUp(2);
+      if (hpPct <= POWERUP.TRIGGER_HP_PCT_3) spawnPowerUp(3);
+      if (hpPct <= POWERUP.TRIGGER_HP_PCT_4) spawnPowerUp(4);
     },
     [spawnPowerUp]
   );
@@ -537,14 +569,16 @@ export default function FightArena() {
           if (dmgToOpponent > 0) {
             setOpponentHp((prev) => {
               const newHp = Math.max(0, prev - dmgToOpponent);
-              checkPowerUpSpawn(newHp);
+              const maxHp = opponentStatsRef.current?.maxHp ?? 100;
+              checkPowerUpSpawn(newHp, maxHp);
               return newHp;
             });
           }
           if (dmgToPlayer > 0) {
             setPlayerHp((prev) => {
               const newHp = Math.max(0, prev - dmgToPlayer);
-              checkPowerUpSpawn(newHp);
+              const maxHp = playerStatsRef.current?.maxHp ?? 100;
+              checkPowerUpSpawn(newHp, maxHp);
               return newHp;
             });
           }
@@ -722,27 +756,13 @@ export default function FightArena() {
         <div className="flex items-center gap-3">
           <span>
             <b>DMG:</b>{' '}
-            <span className={playerStats?.damage
-              ? playerStats.damage >= 20
-                ? 'text-red-500 font-bold'
-                : playerStats.damage >= 15
-                  ? 'text-orange-400 font-bold'
-                  : 'text-white/70'
-              : ''
-            }>
+            <span className={`font-bold ${playerStats ? getDamageColor(playerStats.damage) : ''}`}>
               {playerStats?.damage ?? '-'}
             </span>
           </span>
           <span>
             <b>MASS:</b>{' '}
-            <span className={playerStats?.mass
-              ? playerStats.mass >= 20
-                ? 'text-red-500 font-bold'
-                : playerStats.mass >= 15
-                  ? 'text-orange-400 font-bold'
-                  : 'text-white/70'
-              : ''
-            }>
+            <span className={`font-bold ${playerStats ? getMassColor(playerStats.mass) : ''}`}>
               {playerStats?.mass ?? '-'}
             </span>
           </span>
@@ -762,27 +782,13 @@ export default function FightArena() {
           <StatsTooltip stats={opponentStats} align="right" />
           <span>
             <b>MASS:</b>{' '}
-            <span className={opponentStats?.mass
-              ? opponentStats.mass >= 20
-                ? 'text-red-500 font-bold'
-                : opponentStats.mass >= 15
-                  ? 'text-orange-400 font-bold'
-                  : 'text-white/70'
-              : ''
-            }>
+            <span className={`font-bold ${opponentStats ? getMassColor(opponentStats.mass) : ''}`}>
               {opponentStats?.mass ?? '-'}
             </span>
           </span>
           <span>
             <b>DMG:</b>{' '}
-            <span className={opponentStats?.damage
-              ? opponentStats.damage >= 20
-                ? 'text-red-500 font-bold'
-                : opponentStats.damage >= 15
-                  ? 'text-orange-400 font-bold'
-                  : 'text-white/70'
-              : ''
-            }>
+            <span className={`font-bold ${opponentStats ? getDamageColor(opponentStats.damage) : ''}`}>
               {opponentStats?.damage ?? '-'}
             </span>
           </span>
