@@ -276,9 +276,39 @@ export default function FightArena() {
       color: rightColor,
     });
 
-    // Defensive: ensure both blobs were created successfully
-    if (!leftBlob || !rightBlob) {
-      console.error('[FightArena] Failed to create blob bodies', { leftBlob: !!leftBlob, rightBlob: !!rightBlob });
+    // Handle blob creation failures - whoever's blob fails loses
+    if (!leftBlob && !rightBlob) {
+      // Both failed → player loses
+      console.error('[FightArena] Both blobs failed to create');
+      requestAnimationFrame(() => {
+        setBattleOver(true);
+        setIsVictory(false);
+        setWinner('opponent');
+      });
+      return cleanup;
+    }
+
+    if (!leftBlob) {
+      // Left blob failed → right wins
+      console.error('[FightArena] Left blob failed to create');
+      const winner = myBlobIsLeft ? 'opponent' : 'me';
+      requestAnimationFrame(() => {
+        setBattleOver(true);
+        setIsVictory(winner === 'me');
+        setWinner(winner);
+      });
+      return cleanup;
+    }
+
+    if (!rightBlob) {
+      // Right blob failed → left wins
+      console.error('[FightArena] Right blob failed to create');
+      const winner = myBlobIsLeft ? 'me' : 'opponent';
+      requestAnimationFrame(() => {
+        setBattleOver(true);
+        setIsVictory(winner === 'me');
+        setWinner(winner);
+      });
       return cleanup;
     }
 
@@ -490,6 +520,8 @@ export default function FightArena() {
     Matter.Render.run(render);
 
     return cleanup;
+    // setWinner is called in this effect but is a stable Zustand setter
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myStrokes, opponentStrokes, gameMode, opponent?.username, isHost, battleSeed, isMultiplayer, cleanup, checkPowerUpSpawn]);
 
   /** Handle battle end */
@@ -515,7 +547,9 @@ export default function FightArena() {
         setWinner('me');
       });
     }
-  }, [playerHp, opponentHp, battleOver, setWinner]);
+    // setWinner is a Zustand setter (stable)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerHp, opponentHp, battleOver]);
 
   // Handle server-initiated rematch (both players agreed)
   useEffect(() => {
@@ -535,7 +569,9 @@ export default function FightArena() {
         setPhase('drawing');
       }, 0);
     }
-  }, [isMultiplayer, partyState.roomState?.phase, battleOver, cleanup, clearStrokes, resetInk, setDrawingTimeLeft, setBattleSeed, setPhase, setWinner]);
+    // Zustand setters are stable
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMultiplayer, partyState.roomState?.phase, battleOver, cleanup]);
 
   const handleRematch = () => {
     if (isMultiplayer) {

@@ -1,7 +1,6 @@
 P1
 - just set health to 200 (for now) this is some match using the mass value to determine health but we cap it at 200
-- do not allow ready/submit drawing until there is at least a certain about of ink on canvas
-- handle UI for that case
+- if timer runs out ready button breaks drawing canvas
 
 P2
 - update UI for ready state in drawing canvas
