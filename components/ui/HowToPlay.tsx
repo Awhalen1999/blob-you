@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { HelpCircle, Skull, Heart, Shield, Zap, Bomb } from 'lucide-react';
-import { POWERUP_COLORS, POWERUP_BORDER_COLORS } from '@/lib/physics/constants';
+import { POWERUP_COLORS, POWERUP_BORDER_COLORS } from '@/lib/constants';
 
 export function HowToPlay() {
   const [isOpen, setIsOpen] = useState(false);

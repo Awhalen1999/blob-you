@@ -8,7 +8,7 @@
 
 import Matter from 'matter-js';
 import type { Stroke, BlobStats } from '@/types/game';
-import { STATS } from './constants';
+import { STATS } from '../constants';
 import {
   calculateArea,
   countSharpCorners,

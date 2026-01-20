@@ -7,7 +7,7 @@
 
 import Matter from 'matter-js';
 import type { BlobStats } from '@/types/game';
-import { COMBAT, ARENA, PHYSICS } from './constants';
+import { COMBAT, ARENA, PHYSICS } from '../constants';
 
 /**
  * Calculate damage from a collision.

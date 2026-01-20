@@ -6,7 +6,7 @@
 
 import Matter from 'matter-js';
 import type { Stroke, BlobStats, BlobBody } from '@/types/game';
-import { PHYSICS } from './constants';
+import { PHYSICS } from '../constants';
 import { calculateBlobStats } from './calculateStats';
 import {
   mergeStrokes,

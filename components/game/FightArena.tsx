@@ -5,7 +5,7 @@ import Matter from 'matter-js';
 import { ArrowLeft, Info } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
 import { usePartyKitContext } from '@/contexts/PartyKitContext';
-import { ARENA, PHYSICS, POWERUP, POWERUP_BORDER_COLORS, POWERUP_COLORS, POWERUP_ICONS, POWERUP_LABELS, STATS } from '@/lib/physics/constants';
+import { ARENA, PHYSICS, POWERUP, POWERUP_BORDER_COLORS, POWERUP_COLORS, POWERUP_ICONS, POWERUP_LABELS, STATS } from '@/lib/constants';
 import { createBlobBody } from '@/lib/physics/createBlob';
 import { createArenaWalls, calculateCollisionDamage } from '@/lib/physics/combat';
 import { getRandomNPC } from '@/lib/npc';
@@ -70,11 +70,11 @@ function StatsTooltip({ stats, align = 'left' }: { stats: BlobStats | null; alig
   return (
     <div className="relative flex items-center">
       <button
-        className="text-white/40 hover:text-white/70 transition-colors p-0.5 flex items-center"
+        className="text-white/70 hover:text-white transition-colors p-0.5 flex items-center"
         onMouseEnter={() => setIsOpen(true)}
         onMouseLeave={() => setIsOpen(false)}
       >
-        <Info className="w-3.5 h-3.5" />
+        <Info className="w-4 h-4" />
       </button>
       {isOpen && (
         <div

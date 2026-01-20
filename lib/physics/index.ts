@@ -5,7 +5,7 @@
  */
 
 // Configuration (tunable values)
-export * from './constants';
+export * from '../constants';
 
 // Geometry (pure math utilities)
 export {
