@@ -40,21 +40,21 @@ function PowerUpIndicator({ type }: { type: PowerUpType }) {
 function getDamageColor(damage: number): string {
   if (damage >= STATS.DAMAGE_THRESHOLD_HIGH) return 'text-red-500';
   if (damage >= STATS.DAMAGE_THRESHOLD_MED) return 'text-orange-400';
-  if (damage < STATS.DAMAGE_THRESHOLD_LOW) return 'text-blue-400';
+  if (damage < STATS.DAMAGE_THRESHOLD_LOW) return 'text-teal-400';
   return 'text-white/70';
 }
 
 function getMassColor(mass: number): string {
   if (mass >= STATS.MASS_THRESHOLD_HIGH) return 'text-red-500';
   if (mass >= STATS.MASS_THRESHOLD_MED) return 'text-orange-400';
-  if (mass < STATS.MASS_THRESHOLD_LOW) return 'text-blue-400';
+  if (mass < STATS.MASS_THRESHOLD_LOW) return 'text-teal-400';
   return 'text-white/70';
 }
 
 function getHpColor(hp: number): string {
   if (hp >= STATS.HP_THRESHOLD_HIGH) return 'text-red-500';
   if (hp >= STATS.HP_THRESHOLD_MED) return 'text-orange-400';
-  if (hp <= STATS.HP_THRESHOLD_LOW) return 'text-blue-400';
+  if (hp <= STATS.HP_THRESHOLD_LOW) return 'text-teal-400';
   return 'text-white/70';
 }
 
@@ -718,7 +718,7 @@ export default function FightArena() {
       </Button>
 
       {/* Health bars */}
-      <div className="flex justify-between w-full max-w-[700px] mb-md px-sm">
+      <div className="flex justify-between w-full max-w-3xl mb-md px-sm">
         <HealthBar current={playerHp} max={playerMaxHp} label="Your Blob" isPlayer />
         <HealthBar current={opponentHp} max={opponentMaxHp} label={opponentName} />
       </div>
@@ -761,7 +761,7 @@ export default function FightArena() {
       )}
 
       {/* Stats bar */}
-      <div className="flex justify-between w-full max-w-[700px] mt-md px-sm text-white/70 text-sm min-h-[24px]">
+      <div className="flex justify-between w-full max-w-3xl mt-md px-sm text-white/70 text-sm min-h-[24px]">
         <div className="flex items-center gap-3">
           <span>
             <b>DMG:</b>{' '}

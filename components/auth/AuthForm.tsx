@@ -227,7 +227,7 @@ export default function AuthForm() {
           size="lg"
           fullWidth
           loading={isLoading}
-          className="mt-4"
+          className="mt-md"
         >
           {isSignUp ? 'Sign Up' : 'Login'}
         </Button>

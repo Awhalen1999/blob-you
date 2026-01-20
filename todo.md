@@ -1,5 +1,4 @@
 P1
-- improve text readability (remove /70 opacity prop)
 
 P2
 - update UI for ready state in drawing canvas
