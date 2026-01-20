@@ -1,8 +1,8 @@
 /**
  * Combat System
  *
- * Handles collision damage and arena setup.
- * Movement is physics-based (bouncing off walls and each other).
+ * Simple damage: attacker's sharpness stat = damage dealt.
+ * Both blobs move at same speed, so damage is purely shape-based.
  */
 
 import Matter from 'matter-js';
@@ -12,11 +12,8 @@ import { COMBAT, ARENA, PHYSICS } from './constants';
 /**
  * Calculate damage from a collision.
  *
- * Formula: (velocity × velocityFactor + mass × massFactor) × (1 + damage × sharpnessFactor)
- *
- * - Faster collisions = more damage
- * - Heavier blobs = more damage
- * - Sharper blobs = damage multiplier
+ * Damage = attacker's sharpness stat (min 5)
+ * Simple and predictable: spiky blob = more damage per hit.
  */
 export function calculateCollisionDamage(
   attacker: Matter.Body,
@@ -27,16 +24,11 @@ export function calculateCollisionDamage(
   const relVelY = attacker.velocity.y - defender.velocity.y;
   const relSpeed = Math.sqrt(relVelX * relVelX + relVelY * relVelY);
 
+  // Need minimum velocity to register a hit
   if (relSpeed < COMBAT.MIN_IMPACT_VELOCITY) return 0;
 
-  const velocityDamage = relSpeed * COMBAT.VELOCITY_FACTOR;
-  const massDamage = attackerStats.mass * COMBAT.MASS_FACTOR;
-  const baseDamage = velocityDamage + massDamage;
-
-  const sharpnessMultiplier = 1 + attackerStats.damage * COMBAT.SHARPNESS_FACTOR;
-  const totalDamage = baseDamage * sharpnessMultiplier;
-
-  return Math.max(1, Math.round(totalDamage));
+  // Damage = sharpness stat directly
+  return attackerStats.damage;
 }
 
 /**

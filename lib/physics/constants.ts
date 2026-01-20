@@ -32,26 +32,23 @@ export const PHYSICS = {
 
 /** Blob stat calculation */
 export const STATS = {
-  /** Mass calculation */
-  MASS_MULTIPLIER: 0.0008,
+  /** Mass calculation (from area, compensates for 0.5 scale = 0.25 area) */
+  MASS_MULTIPLIER: 0.003,
   MASS_MIN: 1,
   MASS_MAX: 50,
+
+  /** HP = mass × multiplier (tank builds) */
+  HP_PER_MASS: 5,
+  HP_MIN: 100,
 
   /** Sharpness thresholds (degrees) */
   SHARP_ANGLE_THRESHOLD: 90,
   SPIKE_ANGLE_THRESHOLD: 60,
 
-  /** Damage formula */
+  /** Damage from sharpness (glass cannon builds) */
   BASE_DAMAGE: 5,
   DAMAGE_PER_SHARP: 3,
   DAMAGE_PER_SPIKE: 5,
-
-  /** HP formula */
-  BASE_HP: 50,
-  HP_PER_AREA: 0.02,
-  HP_PER_INK: 0.5,
-  HP_MIN: 30,
-  HP_MAX: 200,
 
   /** Stability */
   STABILITY_BASE: 100,
@@ -59,10 +56,9 @@ export const STATS = {
 
 /** Combat damage calculation */
 export const COMBAT = {
+  /** Minimum velocity to register a hit */
   MIN_IMPACT_VELOCITY: 2,
-  VELOCITY_FACTOR: 0.3,
-  MASS_FACTOR: 0.08,
-  SHARPNESS_FACTOR: 0.25,
+  /** Damage = attacker's sharpness stat directly */
 } as const;
 
 /** Arena dimensions */

@@ -1,8 +1,9 @@
 /**
  * Blob Stats Calculator
  *
- * Calculates mass, damage, HP, and stability from a Matter.js body.
- * Uses actual body vertices for accurate physics-based stats.
+ * Simple stat system based on shape:
+ * - HP from mass (big blob = tank)
+ * - Damage from sharpness (spiky blob = glass cannon)
  */
 
 import Matter from 'matter-js';
@@ -10,42 +11,37 @@ import type { Stroke, BlobStats } from '@/types/game';
 import { STATS } from './constants';
 import {
   calculateArea,
-  calculatePathLength,
   countSharpCorners,
   calculateSymmetry,
   mergeStrokes,
 } from './geometry';
 
 /**
- * Calculate all stats for a blob from its Matter.js body and original strokes.
+ * Calculate all stats for a blob from its Matter.js body.
  *
- * Stats are derived from:
- * - Mass: body vertex area (Shoelace formula)
- * - Damage: sharp corners on the body
- * - HP: ink used + body area
- * - Stability: shape symmetry
+ * HP = mass × 5 (min 100) - bigger shapes survive longer
+ * Damage = sharpness - spikier shapes hit harder
  */
 export function calculateBlobStats(body: Matter.Body, strokes: Stroke[]): BlobStats {
+  void strokes; // Not used but kept for API compatibility
   const vertices = body.vertices.map((v) => ({ x: v.x, y: v.y }));
   const area = calculateArea(vertices);
 
-  // Mass: based on area
+  // Mass: based on area (1-50 range)
   const rawMass = area * STATS.MASS_MULTIPLIER;
   const mass = clamp(rawMass, STATS.MASS_MIN, STATS.MASS_MAX);
   Matter.Body.setMass(body, Math.max(1, mass));
 
-  // Damage: based on sharp corners
+  // HP: directly from mass (tank builds)
+  const hp = Math.max(STATS.HP_MIN, Math.round(mass * STATS.HP_PER_MASS));
+
+  // Damage: based on sharp corners (glass cannon builds)
   const sharpCorners = countSharpCorners(vertices, STATS.SHARP_ANGLE_THRESHOLD);
   const spikeCorners = countSharpCorners(vertices, STATS.SPIKE_ANGLE_THRESHOLD);
   const damage =
     STATS.BASE_DAMAGE +
     sharpCorners * STATS.DAMAGE_PER_SHARP +
     spikeCorners * STATS.DAMAGE_PER_SPIKE;
-
-  // HP: based on ink used and area
-  const inkUsed = strokes.reduce((sum, s) => sum + calculatePathLength(s.points), 0);
-  const rawHp = STATS.BASE_HP + area * STATS.HP_PER_AREA + inkUsed * STATS.HP_PER_INK;
-  const hp = Math.round(clamp(rawHp, STATS.HP_MIN, STATS.HP_MAX));
 
   // Stability: based on symmetry
   const symmetry = calculateSymmetry(vertices);
@@ -62,31 +58,27 @@ export function calculateBlobStats(body: Matter.Body, strokes: Stroke[]): BlobSt
 
 /**
  * Preview stats before body creation (for UI feedback).
- * Less accurate but useful for showing stats during drawing.
  */
 export function previewStats(strokes: Stroke[]): Partial<BlobStats> {
   if (strokes.length === 0) return {};
 
   const allPoints = mergeStrokes(strokes);
-  const inkUsed = strokes.reduce((sum, s) => sum + calculatePathLength(s.points), 0);
 
+  // Approximate area from bounding box
   const minX = Math.min(...allPoints.map((p) => p.x));
   const maxX = Math.max(...allPoints.map((p) => p.x));
   const minY = Math.min(...allPoints.map((p) => p.y));
   const maxY = Math.max(...allPoints.map((p) => p.y));
   const approxArea = (maxX - minX) * (maxY - minY) * 0.6;
 
+  // Approximate mass from area
+  const approxMass = clamp(approxArea * STATS.MASS_MULTIPLIER, STATS.MASS_MIN, STATS.MASS_MAX);
+
   const sharpCorners = countSharpCorners(allPoints, STATS.SHARP_ANGLE_THRESHOLD);
   const symmetry = calculateSymmetry(allPoints);
 
   return {
-    hp: Math.round(
-      clamp(
-        STATS.BASE_HP + approxArea * STATS.HP_PER_AREA + inkUsed * STATS.HP_PER_INK,
-        STATS.HP_MIN,
-        STATS.HP_MAX
-      )
-    ),
+    hp: Math.max(STATS.HP_MIN, Math.round(approxMass * STATS.HP_PER_MASS)),
     damage: Math.round(STATS.BASE_DAMAGE + sharpCorners * STATS.DAMAGE_PER_SHARP),
     stability: Math.round(symmetry * STATS.STABILITY_BASE),
   };

@@ -7,25 +7,27 @@ Draw a blob. Watch it fight. Shape determines stats.
 ```
 You Draw  →  We Calculate  →  Blobs Battle
 ─────────    ─────────────    ────────────
-Strokes      Mass, Damage,    Constant speed,
-on canvas    HP from shape    bounce off walls
+Strokes      HP from mass,    Constant speed,
+on canvas    Damage from      bounce off walls
+             sharpness
 ```
 
 ## How Stats Work
 
-| Stat | Comes From | Effect |
-|------|------------|--------|
-| **Mass** | Shape area | Heavier = more base damage |
-| **Damage** | Sharp corners | Spiky = damage multiplier |
-| **HP** | Area + ink used | Bigger drawing = more health |
+| Stat | Comes From | Formula |
+|------|------------|---------|
+| **HP** | Mass (shape area) | `mass × 5` (min 100) |
+| **Damage** | Sharp corners | `5 + corners × 3 + spikes × 5` |
+
+Big blob = tank. Spiky blob = glass cannon. That's the whole system.
 
 ## The Tradeoff
 
 ```
 BIG ROUND BLOB              SMALL SPIKY BLOB
 ──────────────              ────────────────
-High HP (200)               Low HP (30)
-Low damage (~12/hit)        High damage (~47/hit)
+High HP (~250)              Low HP (~100)
+Low damage (5/hit)          High damage (30+/hit)
 Survives mistakes           Dies fast, kills fast
 ```
 
@@ -34,10 +36,10 @@ Both are viable. No single "best" shape.
 ## Damage Formula
 
 ```
-damage = (speed × 0.3 + mass × 0.08) × (1 + sharpness × 0.25)
+damage_per_hit = attacker's sharpness stat
 ```
 
-Speed is constant (5), so mass and sharpness are what matter.
+That's it. No velocity scaling, no mass factor. Simpler = more predictable strategy.
 
 ## Key Values
 
@@ -50,15 +52,11 @@ PHYSICS = {
 }
 
 STATS = {
-  BASE_HP: 50,           // Everyone starts with at least 50
-  HP_MIN: 30,            // Minimum HP (tiny shapes)
-  HP_MAX: 200,           // Maximum HP (huge shapes)
-  SHARP_ANGLE_THRESHOLD: 90,  // Corners < 90° count as "sharp"
-}
-
-COMBAT = {
-  MIN_IMPACT_VELOCITY: 2,     // Below this, no damage
-  SHARPNESS_FACTOR: 0.25,     // How much sharpness multiplies damage
+  HP_PER_MASS: 5,        // HP = mass × 5
+  HP_MIN: 100,           // Minimum HP (tiny shapes)
+  BASE_DAMAGE: 5,        // Everyone does at least 5 damage
+  SHARP_ANGLE_THRESHOLD: 90,  // Corners < 90° = sharp
+  SPIKE_ANGLE_THRESHOLD: 60,  // Corners < 60° = spike (bonus damage)
 }
 ```
 
@@ -66,7 +64,7 @@ COMBAT = {
 
 1. **Draw** → Player draws strokes (ink limit: 100)
 2. **Convert** → Strokes become a physics body
-3. **Calculate** → Shape determines mass, damage, HP
+3. **Calculate** → Shape determines mass → HP, corners → damage
 4. **Launch** → Blobs start on opposite sides
 5. **Bounce** → Constant speed, bounce off walls
 6. **Collide** → Both blobs take damage on impact
@@ -74,7 +72,7 @@ COMBAT = {
 
 ## Power-Ups
 
-Spawn when any blob drops below HP thresholds (160, 120, 80, 40):
+Spawn when any blob drops below HP thresholds:
 
 | Power-Up | Effect |
 |----------|--------|
@@ -89,11 +87,11 @@ Spawn when any blob drops below HP thresholds (160, 120, 80, 40):
 lib/physics/
 ├── constants.ts      # All tunable values
 ├── createBlob.ts     # Strokes → physics body
-├── calculateStats.ts # Body → stats
-├── combat.ts         # Damage calculation
+├── calculateStats.ts # Body → stats (HP, damage)
+├── combat.ts         # Collision → damage
 └── geometry.ts       # Math helpers
 ```
 
 ## That's It
 
-Draw. Stats calculated from shape. Blobs bounce and fight. First to 0 HP loses.
+Draw. HP from size, damage from spikiness. Blobs bounce and fight. First to 0 HP loses.
