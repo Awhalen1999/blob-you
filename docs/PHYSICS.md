@@ -53,7 +53,7 @@ PHYSICS = {
 
 STATS = {
   HP_PER_MASS: 5,        // HP = mass × 5
-  HP_MIN: 100,           // Minimum HP (tiny shapes)
+  HP_MIN: 100,           // Minimum HP (tiny shapes still get 100)
   BASE_DAMAGE: 5,        // Everyone does at least 5 damage
   SHARP_ANGLE_THRESHOLD: 90,  // Corners < 90° = sharp
   SPIKE_ANGLE_THRESHOLD: 60,  // Corners < 60° = spike (bonus damage)

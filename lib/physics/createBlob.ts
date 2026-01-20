@@ -111,13 +111,16 @@ function createFallbackBlob(options: CreateBlobOptions): BlobBody {
     },
   });
   
-  // Default stats for fallback blob
+  // Default stats for fallback blob (circle = no corners)
   const stats: BlobStats = {
     mass: 10,
     damage: 5,
-    hp: 50,
-    maxHp: 50,
+    hp: 100,
+    maxHp: 100,
     stability: 80,
+    corners: 0,
+    spikes: 0,
+    area: Math.round(Math.PI * radius * radius),
   };
   
   Matter.Body.setMass(body, stats.mass);

@@ -19,6 +19,10 @@ export type BlobStats = {
   hp: number;
   maxHp: number;
   stability: number;
+  // Detailed breakdown
+  corners: number;
+  spikes: number;
+  area: number;
 };
 
 /** Matter.js body with calculated stats */

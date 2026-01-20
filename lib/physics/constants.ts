@@ -35,7 +35,6 @@ export const STATS = {
   /** Mass calculation (from area, compensates for 0.5 scale = 0.25 area) */
   MASS_MULTIPLIER: 0.003,
   MASS_MIN: 1,
-  MASS_MAX: 50,
 
   /** HP = mass × multiplier (tank builds) */
   HP_PER_MASS: 5,

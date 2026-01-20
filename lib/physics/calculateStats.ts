@@ -27,10 +27,10 @@ export function calculateBlobStats(body: Matter.Body, strokes: Stroke[]): BlobSt
   const vertices = body.vertices.map((v) => ({ x: v.x, y: v.y }));
   const area = calculateArea(vertices);
 
-  // Mass: based on area (1-50 range)
+  // Mass: based on area (no upper cap)
   const rawMass = area * STATS.MASS_MULTIPLIER;
-  const mass = clamp(rawMass, STATS.MASS_MIN, STATS.MASS_MAX);
-  Matter.Body.setMass(body, Math.max(1, mass));
+  const mass = Math.max(STATS.MASS_MIN, rawMass);
+  Matter.Body.setMass(body, mass);
 
   // HP: directly from mass (tank builds)
   const hp = Math.max(STATS.HP_MIN, Math.round(mass * STATS.HP_PER_MASS));
@@ -53,6 +53,10 @@ export function calculateBlobStats(body: Matter.Body, strokes: Stroke[]): BlobSt
     hp,
     maxHp: hp,
     stability,
+    // Detailed breakdown for UI
+    corners: sharpCorners,
+    spikes: spikeCorners,
+    area: Math.round(area),
   };
 }
 
@@ -72,18 +76,18 @@ export function previewStats(strokes: Stroke[]): Partial<BlobStats> {
   const approxArea = (maxX - minX) * (maxY - minY) * 0.6;
 
   // Approximate mass from area
-  const approxMass = clamp(approxArea * STATS.MASS_MULTIPLIER, STATS.MASS_MIN, STATS.MASS_MAX);
+  const approxMass = Math.max(STATS.MASS_MIN, approxArea * STATS.MASS_MULTIPLIER);
 
   const sharpCorners = countSharpCorners(allPoints, STATS.SHARP_ANGLE_THRESHOLD);
+  const spikeCorners = countSharpCorners(allPoints, STATS.SPIKE_ANGLE_THRESHOLD);
   const symmetry = calculateSymmetry(allPoints);
 
   return {
     hp: Math.max(STATS.HP_MIN, Math.round(approxMass * STATS.HP_PER_MASS)),
-    damage: Math.round(STATS.BASE_DAMAGE + sharpCorners * STATS.DAMAGE_PER_SHARP),
+    damage: Math.round(STATS.BASE_DAMAGE + sharpCorners * STATS.DAMAGE_PER_SHARP + spikeCorners * STATS.DAMAGE_PER_SPIKE),
     stability: Math.round(symmetry * STATS.STABILITY_BASE),
+    corners: sharpCorners,
+    spikes: spikeCorners,
+    area: Math.round(approxArea),
   };
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
 }

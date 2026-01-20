@@ -51,7 +51,7 @@ All values in `lib/physics/constants.ts`:
 ```typescript
 STATS = {
   HP_PER_MASS: 5,      // HP = mass × this
-  HP_MIN: 100,         // Floor for tiny blobs
+  HP_MIN: 100,         // Minimum HP (tiny blobs still get 100)
   BASE_DAMAGE: 5,      // Everyone does at least 5
   DAMAGE_PER_SHARP: 3, // Per corner < 90°
   DAMAGE_PER_SPIKE: 5, // Per corner < 60°

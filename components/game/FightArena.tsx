@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Matter from 'matter-js';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Info } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
 import { usePartyKitContext } from '@/contexts/PartyKitContext';
 import { ARENA, PHYSICS, POWERUP, POWERUP_BORDER_COLORS, POWERUP_COLORS, POWERUP_ICONS, POWERUP_LABELS } from '@/lib/physics/constants';
@@ -32,6 +32,63 @@ function PowerUpIndicator({ type }: { type: PowerUpType }) {
     >
       <Icon className="w-3 h-3" />
       <span className="leading-none">{label}</span>
+    </div>
+  );
+}
+
+function StatsTooltip({ stats, align = 'left' }: { stats: BlobStats | null; align?: 'left' | 'right' }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (!stats) return null;
+
+  return (
+    <div className="relative flex items-center">
+      <button
+        className="text-white/40 hover:text-white/70 transition-colors p-0.5 flex items-center"
+        onMouseEnter={() => setIsOpen(true)}
+        onMouseLeave={() => setIsOpen(false)}
+      >
+        <Info className="w-3.5 h-3.5" />
+      </button>
+      {isOpen && (
+        <div
+          className={`absolute bottom-full mb-2 bg-gray-900/95 border border-white/20 rounded-lg px-3 py-2 text-xs whitespace-nowrap z-50 shadow-xl ${
+            align === 'right' ? 'right-0' : 'left-0'
+          }`}
+        >
+          <div className="font-bold text-white/90 mb-1.5 border-b border-white/10 pb-1">
+            Stats Breakdown
+          </div>
+          <div className="space-y-1 text-white/70">
+            <div className="flex justify-between gap-4">
+              <span>Area:</span>
+              <span className="text-white/90 font-mono">{stats.area.toLocaleString()}px²</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span>Corners:</span>
+              <span className="text-white/90 font-mono">{stats.corners}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span>Spikes:</span>
+              <span className="text-white/90 font-mono">{stats.spikes}</span>
+            </div>
+            <div className="border-t border-white/10 pt-1 mt-1.5">
+              <div className="flex justify-between gap-4">
+                <span>Mass:</span>
+                <span className="text-white/90 font-mono">{stats.mass}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span>HP:</span>
+                <span className="text-green-400 font-mono">{stats.hp}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span>Damage:</span>
+                <span className="text-red-400 font-mono">{stats.damage}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -662,7 +719,7 @@ export default function FightArena() {
 
       {/* Stats bar */}
       <div className="flex justify-between w-full max-w-[700px] mt-md px-sm text-white/70 text-sm min-h-[24px]">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <span>
             <b>DMG:</b>{' '}
             <span className={playerStats?.damage
@@ -689,18 +746,20 @@ export default function FightArena() {
               {playerStats?.mass ?? '-'}
             </span>
           </span>
+          <StatsTooltip stats={playerStats} align="left" />
           <div className="flex items-center gap-2">
             {playerPowerUps.map((powerUp, index) => (
               <PowerUpIndicator key={`${powerUp}-${index}`} type={powerUp} />
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             {opponentPowerUps.map((powerUp, index) => (
               <PowerUpIndicator key={`${powerUp}-${index}`} type={powerUp} />
             ))}
           </div>
+          <StatsTooltip stats={opponentStats} align="right" />
           <span>
             <b>MASS:</b>{' '}
             <span className={opponentStats?.mass
