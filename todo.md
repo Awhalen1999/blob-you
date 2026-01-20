@@ -1,6 +1,6 @@
 P1
+- just set health to 200 (for now) this is some match using the mass value to determine health but we cap it at 200
 - do not allow ready/submit drawing until there is at least a certain about of ink on canvas
-- do not start match if users do not have drawing with at least x < ink
 - handle UI for that case
 
 P2
@@ -16,3 +16,4 @@ Nice to haves:
 - chat
 - sharpness nerf
 - bomb/damaging power up?
+- actually use mass to calculate health - values mass more than sharpness can balance more

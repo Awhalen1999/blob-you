@@ -10,6 +10,7 @@ import Button from '@/components/ui/Button';
 
 const CANVAS_WIDTH = 600;
 const CANVAS_HEIGHT = 450;
+const MIN_INK_TO_READY = 15; // Minimum ink used before Ready button enables
 
 export default function DrawingCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -213,7 +214,7 @@ export default function DrawingCanvas() {
 
   // Ready button
   const handleReady = () => {
-    if (isReady) return;
+    if (isReady || !hasMinimumInk) return;
     setIsReady(true);
 
     if (gameMode === 'npc') {
@@ -229,6 +230,11 @@ export default function DrawingCanvas() {
     }
     reset();
   };
+
+  // Minimum ink validation (uses liveInk for real-time updates)
+  const inkUsed = 100 - liveInk;
+  const hasMinimumInk = inkUsed >= MIN_INK_TO_READY;
+  const canSubmit = hasMinimumInk && !isReady;
 
   // Status flags
   const timerLow = drawingTimeLeft <= 10;
@@ -316,6 +322,11 @@ export default function DrawingCanvas() {
               `}
               style={{ height: `${liveInk}%` }}
             />
+            {/* Threshold marker - clear indicator at 15% used mark */}
+            <div 
+              className="absolute w-full border-t-2 border-red-600 pointer-events-none z-10"
+              style={{ bottom: `${100 - MIN_INK_TO_READY}%` }}
+            />
             {/* Meter lines */}
             <div className="absolute inset-0 flex flex-col justify-between py-1 pointer-events-none">
               {[...Array(10)].map((_, i) => (
@@ -331,7 +342,7 @@ export default function DrawingCanvas() {
       <div className="flex flex-col items-center gap-2">
         <Button
           onClick={handleReady}
-          disabled={isReady}
+          disabled={!canSubmit}
           variant={isReady ? 'success' : 'primary'}
           size="lg"
           icon={isReady ? <Check className="w-5 h-5" /> : undefined}
