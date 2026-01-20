@@ -48,7 +48,7 @@ export default function BattleResult({
           }}
         >
           {isVictory
-            ? 'YOUR BLOB EMERGED TRIUMPHANT!'
+            ? 'YOUR BLOB HAS WON THE BATTLE!'
             : 'YOUR BLOB HAS BEEN DEFEATED...'}
         </p>
 
