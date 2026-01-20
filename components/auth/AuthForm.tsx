@@ -12,6 +12,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
 } from 'firebase/auth';
+import Button from '@/components/ui/Button';
 
 // types
 type AuthMode = 'login' | 'signup';
@@ -184,7 +185,7 @@ export default function AuthForm() {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-700 hover:text-gray-800 px-1 cursor-pointer"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs  px-1 cursor-pointer"
             >
               {showPassword ? 'Hide' : 'Show'}
             </button>
@@ -220,13 +221,16 @@ export default function AuthForm() {
         )}
 
         {/* submit button */}
-        <button
+        <Button
           type="submit"
-          disabled={isLoading}
-          className="w-full p-sm bg-gray-900 text-white rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50 text-sm font-medium cursor-pointer"
+          variant="primary"
+          size="lg"
+          fullWidth
+          loading={isLoading}
+          className="mt-4"
         >
-          {isLoading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Login'}
-        </button>
+          {isSignUp ? 'Sign Up' : 'Login'}
+        </Button>
       </form>
 
       {/* toggle mode */}
