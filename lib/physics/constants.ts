@@ -5,7 +5,7 @@
  * Adjust these to change game feel without touching logic.
  */
 
-import { Skull, Heart, Shield, Zap } from 'lucide-react';
+import { Skull, Heart, Shield, Zap, Bomb } from 'lucide-react';
 
 /** Physics body properties */
 export const PHYSICS = {
@@ -96,6 +96,7 @@ export const POWERUP = {
   DOUBLE_DAMAGE_MULT: 2,
   HEAL_AMOUNT: 20,
   REGEN_HEAL_AMOUNT: 2,
+  BOMB_DAMAGE: 20,
 } as const;
 
 /** Power-up render colors (hex) */
@@ -104,6 +105,7 @@ export const POWERUP_COLORS = {
   heal: '#22c55e',
   shield: '#3b82f6',
   regen: '#f59e0b',
+  bomb: '#000000',
 } as const;
 
 export const POWERUP_BORDER_COLORS = {
@@ -111,6 +113,7 @@ export const POWERUP_BORDER_COLORS = {
   heal: '#15803d',
   shield: '#1d4ed8',
   regen: '#b45309',
+  bomb: '#640000',
 } as const;
 
 /** Power-up icons */
@@ -119,6 +122,7 @@ export const POWERUP_ICONS = {
   heal: Heart,
   shield: Shield,
   regen: Zap,
+  bomb: Bomb,
 } as const;
 
 /** Power-up labels */
@@ -127,6 +131,7 @@ export const POWERUP_LABELS = {
   heal: '+20',
   shield: 'SHIELD',
   regen: 'REGEN',
+  bomb: 'BOMB',
 } as const;
 
 

@@ -206,7 +206,7 @@ export default function FightArena() {
     triggeredThresholdsRef.current.add(threshold);
 
     const rng = rngRef.current;
-    const types: PowerUpType[] = ['damage', 'heal', 'shield', 'regen'];
+    const types: PowerUpType[] = ['damage', 'heal', 'shield', 'regen', 'bomb'];
     const type = rng.pick(types);
 
     const x = rng.range(100, ARENA.WIDTH - 100);
@@ -513,6 +513,15 @@ export default function FightArena() {
                 } else {
                   opponentRegenRef.current = true;
                   setOpponentPowerUps((prev) => [...prev, 'regen']);
+                }
+              } else if (type === 'bomb') {
+                // Bomb damages the opponent (opposite of heal)
+                if (picker === 'player') {
+                  setOpponentHp((prev) => Math.max(0, prev - POWERUP.BOMB_DAMAGE));
+                  setPlayerPowerUps((prev) => [...prev, 'bomb']);
+                } else {
+                  setPlayerHp((prev) => Math.max(0, prev - POWERUP.BOMB_DAMAGE));
+                  setOpponentPowerUps((prev) => [...prev, 'bomb']);
                 }
               }
             }

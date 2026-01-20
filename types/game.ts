@@ -49,7 +49,7 @@ export type GameMode = 'npc' | 'multiplayer';
 export type NPCDifficulty = 'easy' | 'medium' | 'hard';
 
 /** Power-up types */
-export type PowerUpType = 'damage' | 'heal' | 'shield' | 'regen';
+export type PowerUpType = 'damage' | 'heal' | 'shield' | 'regen' | 'bomb';
 
 /** Power-up on the arena field */
 export type ArenaPoweUp = {
