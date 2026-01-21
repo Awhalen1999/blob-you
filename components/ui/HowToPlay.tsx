@@ -25,7 +25,7 @@ export function HowToPlay() {
             Game Overview
           </div>
           <p className="text-white/70 mb-3 leading-relaxed">
-            Draw a blob shape to create your fighter. Your blob&apos;s stats are calculated from its shape, then battle in the arena!
+            Draw a blob/shape to create your fighter. Your blob&apos;s stats are calculated from its shape, then battle in the arena!
           </p>
 
           {/* Stats */}

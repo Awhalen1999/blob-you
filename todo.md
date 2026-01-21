@@ -1,12 +1,13 @@
 P1
 
 P2
-- update UI for ready state in drawing canvas
 - handle ties
 - test what happens if a third user attempts to join party
+- rename npc
 
 P3
 - update match code / match room UI slightly
+- update UI for ready state in drawing canvas
 - border for canvas can be improved
 
 Nice to haves:
