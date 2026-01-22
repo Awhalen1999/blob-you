@@ -249,7 +249,8 @@ export default function DrawingCanvas() {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           className={`
-            bg-white rounded-md border-4 cursor-crosshair touch-none
+            rounded-md border-4 cursor-crosshair touch-none
+            shadow-[0_2px_8px_rgba(0,0,0,0.1)]
             ${isReady ? 'opacity-70 pointer-events-none' : ''}
             ${inkCritical ? 'border-red-400' : inkLow ? 'border-orange-400' : 'border-black/40'}
           `}
