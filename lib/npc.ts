@@ -123,21 +123,6 @@ function generateOrganicBlob(cx: number, cy: number, segments: number = 20): Poi
 }
 
 /**
- * Generate a diamond (rotated square) - 4 sharp corners
- */
-function generateDiamond(cx: number, cy: number): Point[] {
-  const width = 120; // Doubled from 60
-  const height = 200; // Doubled from 100
-  return [
-    { x: cx, y: cy - height / 2 },
-    { x: cx + width / 2, y: cy },
-    { x: cx, y: cy + height / 2 },
-    { x: cx - width / 2, y: cy },
-    { x: cx, y: cy - height / 2 },
-  ];
-}
-
-/**
  * Convert points to a stroke
  */
 function pointsToStroke(points: Point[]): Stroke {
