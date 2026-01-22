@@ -156,12 +156,12 @@ const NPC_BLOBS: NPCBlob[] = [
     strokes: [pointsToStroke(generateCircle(200, 200, 140))], // radius = 140 (was 70)
   },
   {
-    name: 'Boxxy',
+    name: 'Pointy guy',
     color: '#a78bfa',
     strokes: [pointsToStroke(generateSquare(200, 200, 180))], // side length = 180 (reduced from 240 for balance)
   },
   {
-    name: 'Triforce',
+    name: 'Triangle guy',
     color: '#fbbf24',
     strokes: [pointsToStroke(generateTriangle(200, 200, 260))], // side length = 260 (was 130)
   },
@@ -169,11 +169,6 @@ const NPC_BLOBS: NPCBlob[] = [
     name: 'Goopy',
     color: '#FF2ED5',
     strokes: [pointsToStroke(generateOrganicBlob(200, 200))], // uses hardcoded size (will update function)
-  },
-  {
-    name: 'Gem',
-    color: '#06b6d4',
-    strokes: [pointsToStroke(generateDiamond(200, 200))], // uses hardcoded size (will update function)
   },
   {
     name: 'Starro',

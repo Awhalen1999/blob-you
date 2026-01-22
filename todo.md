@@ -2,7 +2,6 @@ P1
 
 P2
 - handle ties
-- test what happens if a third user attempts to join party
 - rename npc
 
 P3
