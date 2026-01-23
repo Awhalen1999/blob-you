@@ -10,5 +10,5 @@ P3
 Nice to haves:
 - animated blob for main menu / loading
 - chat
-- slight styling update on the canvas to make it look more like paper (loose leaf)
 - handle ties
+- some background for battle arena
