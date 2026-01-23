@@ -8,7 +8,6 @@ P3
 - border for canvas can be improved
 
 Nice to haves:
-- animated blob for main menu / loading
 - chat
 - handle ties
 - some background for battle arena
