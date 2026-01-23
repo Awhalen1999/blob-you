@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fredoka } from "next/font/google";
 import { Providers } from "@/components/providers/Providers";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const fredoka = Fredoka({
@@ -26,6 +27,7 @@ export default function RootLayout({
         <Providers>
           {children}
         </Providers>
+        <Toaster position="bottom-center" toastOptions={{ duration: 10000 }} />
       </body>
     </html>
   );

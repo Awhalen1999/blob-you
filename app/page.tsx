@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { LogOut, Loader2, Copy, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { auth } from '@/lib/firebase';
 import AuthForm from '@/components/auth/AuthForm';
@@ -31,6 +32,37 @@ export default function Home() {
   const [roomCode, setRoomCodeLocal] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [copied, setCopied] = useState(false);
+
+  // Show mobile warning on first load (after user is loaded)
+  useEffect(() => {
+    // Only run after loading is complete and user is authenticated
+    if (loading) return;
+    
+    // Check if we've already shown the warning
+    const hasShownWarning = sessionStorage.getItem('mobile-warning-shown');
+    
+    // Check if mobile device (screen width <= 768px)
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+    
+    if (isMobile && !hasShownWarning) {
+      // Small delay to ensure Toaster is mounted
+      const timer = setTimeout(() => {
+        toast('Hey! Looks like you\'re on a smaller screen. This app works better on desktop, The arena and canvas are fixed size, so some content may be cut off, but everything works the same.', {
+          duration: 10000,
+          style: {
+            background: 'rgba(255, 255, 255, 0.1)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            color: 'rgba(255, 255, 255, 0.9)',
+            fontSize: '14px',
+          },
+        });
+        sessionStorage.setItem('mobile-warning-shown', 'true');
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [loading]);
 
   const { phase, setPhase, setGameMode, setRoomCode, setIsHost, setOpponent, setOpponentStrokes, setBattleSeed, reset } = useGameStore();
   const [partyState, partyActions] = usePartyKitContext();
