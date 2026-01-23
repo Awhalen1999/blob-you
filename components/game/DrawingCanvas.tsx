@@ -7,6 +7,7 @@ import { usePartyKitContext } from '@/contexts/PartyKitContext';
 import { getMousePos, getTouchPos, clearCanvas } from '@/lib/drawing/canvas';
 import type { Point, Stroke } from '@/types/game';
 import Button from '@/components/ui/Button';
+import { HowToPlay } from '@/components/ui/HowToPlay';
 
 const CANVAS_WIDTH = 600;
 const CANVAS_HEIGHT = 450;
@@ -232,6 +233,8 @@ export default function DrawingCanvas() {
       >
         {isMultiplayer ? 'Leave Lobby' : 'Main Menu'}
       </Button>
+
+      <HowToPlay />
 
       <div className="flex flex-col items-center justify-center gap-md h-full">
         {/* Main drawing area */}

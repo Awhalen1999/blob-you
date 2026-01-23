@@ -145,7 +145,6 @@ export default function Home() {
       <>
         <DrawingCanvas />
         <PartyStatus />
-        <HowToPlay />
       </>
     );
   }
@@ -156,7 +155,6 @@ export default function Home() {
       <>
         <FightArena />
         <PartyStatus />
-        <HowToPlay />
       </>
     );
   }

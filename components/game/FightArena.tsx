@@ -14,6 +14,7 @@ import type { BlobStats, PowerUpType, ArenaPoweUp } from '@/types/game';
 import HealthBar from './HealthBar';
 import BattleResult from './BattleResult';
 import Button from '@/components/ui/Button';
+import { HowToPlay } from '@/components/ui/HowToPlay';
 
 function PowerUpIndicator({ type }: { type: PowerUpType }) {
   const Icon = POWERUP_ICONS[type];
@@ -716,6 +717,8 @@ export default function FightArena() {
       >
         {isMultiplayer ? 'Leave Lobby' : 'Main Menu'}
       </Button>
+
+      <HowToPlay />
 
       {/* Health bars */}
       <div className="flex justify-between w-full max-w-3xl mb-md px-sm">
