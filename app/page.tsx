@@ -364,7 +364,7 @@ export default function Home() {
         variant="secondary"
         size="md"
         icon={<LogOut className="w-4 h-4" />}
-        className="absolute top-4 left-4 z-10"
+        className="absolute top-4 left-4 z-10 max-[768px]:top-6"
       >
         Sign Out
       </Button>

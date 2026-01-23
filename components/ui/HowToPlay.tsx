@@ -8,7 +8,7 @@ export function HowToPlay() {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="absolute top-4 right-4 z-10">
+    <div className="absolute top-4 right-4 z-10 max-[768px]:top-6">
       <button
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white/10 border border-white/20 text-white/70 hover:text-white hover:bg-white/15 transition-colors text-sm"
         onMouseEnter={() => setIsOpen(true)}

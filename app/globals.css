@@ -67,6 +67,15 @@ body {
   padding: 0;
 }
 
+/* Mobile safe area padding - only affects mobile devices */
+@supports (padding: max(0px)) {
+  @media (max-width: 768px) {
+    body {
+      padding-top: max(env(safe-area-inset-top, 0px), 8px);
+    }
+  }
+}
+
 body {
   color: var(--foreground);
   font-family: var(--font-fredoka), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

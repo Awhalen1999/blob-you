@@ -228,7 +228,7 @@ export default function DrawingCanvas() {
         variant="secondary"
         size="md"
         icon={<ArrowLeft className="w-4 h-4" />}
-        className="absolute top-4 left-4 z-10"
+        className="absolute top-4 left-4 z-10 max-[768px]:top-6"
       >
         {isMultiplayer ? 'Leave Lobby' : 'Main Menu'}
       </Button>
