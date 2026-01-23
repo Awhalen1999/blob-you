@@ -370,7 +370,7 @@ export default function Home() {
       <HowToPlay />
 
       <div className="transparent-bg w-full max-w-md mx-auto p-lg rounded-sm border border-white/20">
-        <header className="mb-lg text-center">
+        <header className="mb-2xl text-center">
           <h1 className="text-3xl font-bold text-white">blob.you</h1>
         </header>
 

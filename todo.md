@@ -1,7 +1,6 @@
 P1
 
 P2
-- slight mobile optimization (we cannot change the canvas sizes but the buttons and heights can be optimized)
 
 P3
 - update match code / match room UI slightly
