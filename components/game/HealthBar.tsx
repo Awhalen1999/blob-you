@@ -1,13 +1,16 @@
 'use client';
 
+import { Trophy } from 'lucide-react';
+
 interface HealthBarProps {
   current: number;
   max: number;
   label: string;
   isPlayer?: boolean;
+  wins?: number;
 }
 
-export default function HealthBar({ current, max, label, isPlayer = false }: HealthBarProps) {
+export default function HealthBar({ current, max, label, isPlayer = false, wins = 0 }: HealthBarProps) {
   const percentage = Math.max(0, Math.min(100, (current / max) * 100));
 
   // Color states based on HP
@@ -31,9 +34,19 @@ export default function HealthBar({ current, max, label, isPlayer = false }: Hea
   return (
     <div className={`flex flex-col gap-1 ${isPlayer ? 'items-start' : 'items-end'}`}>
       {/* Label */}
-      <span className="text-xs font-bold text-white/80 uppercase tracking-wide">
-        {label}
-      </span>
+      <div className={`flex items-center gap-1.5 ${isPlayer ? '' : 'flex-row-reverse'}`}>
+        <span className="text-xs font-bold text-white/80 uppercase tracking-wide">
+          {label}
+        </span>
+        {wins > 0 && (
+          <div className="flex items-center gap-0.5">
+            <Trophy className="w-3 h-3 text-yellow-400" />
+            {wins > 1 && (
+              <span className="text-[10px] font-bold text-yellow-400">x{wins}</span>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* HP bar container */}
       <div

@@ -19,6 +19,8 @@ type GameStore = {
   // Battle
   battleSeed: number | null;
   winner: 'me' | 'opponent' | null;
+  playerSessionWins: number;
+  opponentSessionWins: number;
 
   // Actions
   setPhase: (phase: GamePhase) => void;
@@ -33,6 +35,8 @@ type GameStore = {
   resetInk: () => void;
   setBattleSeed: (seed: number | null) => void;
   setWinner: (winner: 'me' | 'opponent' | null) => void;
+  addPlayerWin: () => void;
+  addOpponentWin: () => void;
   reset: () => void;
 };
 
@@ -49,6 +53,8 @@ const initialState = {
   inkRemaining: INITIAL_INK,
   battleSeed: null,
   winner: null,
+  playerSessionWins: 0,
+  opponentSessionWins: 0,
 };
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -69,6 +75,8 @@ export const useGameStore = create<GameStore>((set) => ({
 
   setBattleSeed: (seed) => set({ battleSeed: seed }),
   setWinner: (winner) => set({ winner }),
+  addPlayerWin: () => set((state) => ({ playerSessionWins: state.playerSessionWins + 1 })),
+  addOpponentWin: () => set((state) => ({ opponentSessionWins: state.opponentSessionWins + 1 })),
 
   reset: () => set(initialState),
 }));

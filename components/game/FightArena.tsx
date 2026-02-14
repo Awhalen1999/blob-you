@@ -176,6 +176,10 @@ export default function FightArena() {
     isHost,
     battleSeed,
     setWinner,
+    addPlayerWin,
+    addOpponentWin,
+    playerSessionWins,
+    opponentSessionWins,
     reset,
     setPhase,
     clearStrokes,
@@ -373,6 +377,7 @@ export default function FightArena() {
         setBattleOver(true);
         setIsVictory(false);
         setWinner('opponent');
+        addOpponentWin();
       });
       return cleanup;
     }
@@ -385,6 +390,7 @@ export default function FightArena() {
         setBattleOver(true);
         setIsVictory(winner === 'me');
         setWinner(winner);
+        if (winner === 'me') addPlayerWin(); else addOpponentWin();
       });
       return cleanup;
     }
@@ -397,6 +403,7 @@ export default function FightArena() {
         setBattleOver(true);
         setIsVictory(winner === 'me');
         setWinner(winner);
+        if (winner === 'me') addPlayerWin(); else addOpponentWin();
       });
       return cleanup;
     }
@@ -636,6 +643,7 @@ export default function FightArena() {
         setBattleOver(true);
         setIsVictory(false);
         setWinner('opponent');
+        addOpponentWin();
       });
     } else if (opponentHp <= 0) {
       if (engineRef.current && opponentBodyRef.current) {
@@ -645,6 +653,7 @@ export default function FightArena() {
         setBattleOver(true);
         setIsVictory(true);
         setWinner('me');
+        addPlayerWin();
       });
     }
     // setWinner is a Zustand setter (stable)
@@ -722,8 +731,8 @@ export default function FightArena() {
 
       {/* Health bars */}
       <div className="flex justify-between w-full max-w-3xl mb-md px-sm">
-        <HealthBar current={playerHp} max={playerMaxHp} label="Your Blob" isPlayer />
-        <HealthBar current={opponentHp} max={opponentMaxHp} label={opponentName} />
+        <HealthBar current={playerHp} max={playerMaxHp} label="Your Blob" isPlayer wins={playerSessionWins} />
+        <HealthBar current={opponentHp} max={opponentMaxHp} label={opponentName} wins={opponentSessionWins} />
       </div>
 
       {/* Arena with power-up overlays */}
