@@ -322,10 +322,20 @@ export default function DrawingCanvas() {
               style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
             />
 
+            {/* Clear button - top right of canvas */}
+            {!isReady && myStrokes.length > 0 && (
+              <button
+                onClick={handleClear}
+                className="absolute top-2 right-2 z-10 w-10 h-10 flex items-center justify-center rounded-md bg-black/5 border border-black/10 text-black/75 hover:text-black hover:bg-black/10 hover:border-black/20 transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            )}
+
             {/* Canvas hint overlay */}
             {!isDrawing && !isReady && myStrokes.length > 0 && !canSubmit && (
               <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none z-10">
-                <p className="text-black/50 text-xs bg-red-400/20 backdrop-blur-sm px-3 py-1 rounded-md border border-red-400/50">
+                <p className="text-black/50 text-xs bg-red-300/25 backdrop-blur-sm px-3 py-1 rounded-md border border-red-300/50">
                   {!hasMinimumInk
                     ? "Use more ink to ready up"
                     : !isShapeClosed
@@ -387,15 +397,6 @@ export default function DrawingCanvas() {
         {/* Ready section */}
         <div className="flex flex-col items-center gap-2">
           <div className="flex items-center gap-2">
-            <Button
-              onClick={handleClear}
-              disabled={isReady || myStrokes.length === 0}
-              variant="secondary"
-              size="lg"
-              icon={<RotateCcw className="w-4 h-4" />}
-            >
-              Clear
-            </Button>
             <Button
               onClick={handleReady}
               disabled={!canSubmit}
