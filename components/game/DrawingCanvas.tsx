@@ -16,6 +16,23 @@ const CANVAS_HEIGHT = 450;
 const MIN_INK_TO_READY = 15; // Minimum ink used before Ready button enables
 const CLOSE_THRESHOLD = 30; // Max distance (px) between first and last point to count as closed
 
+/** Check if two line segments intersect */
+function segmentsIntersect(a1: Point, a2: Point, b1: Point, b2: Point): boolean {
+  const d1 = cross(b1, b2, a1);
+  const d2 = cross(b1, b2, a2);
+  const d3 = cross(a1, a2, b1);
+  const d4 = cross(a1, a2, b2);
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+      ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+    return true;
+  }
+  return false;
+}
+
+function cross(o: Point, a: Point, b: Point): number {
+  return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+}
+
 export default function DrawingCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -257,20 +274,43 @@ export default function DrawingCanvas() {
     reset();
   };
 
-  // Check if shape is closed (first point near last point)
+  // Check if shape is enclosed (path self-intersects or start meets end)
   const isShapeClosed = (() => {
     if (myStrokes.length === 0) return false;
-    const firstStroke = myStrokes[0];
-    const lastStroke = myStrokes[myStrokes.length - 1];
-    if (firstStroke.points.length === 0 || lastStroke.points.length === 0)
-      return false;
 
-    const firstPoint = firstStroke.points[0];
-    const lastPoint = lastStroke.points[lastStroke.points.length - 1];
+    // Collect all points into one path, sampled for performance
+    const allPoints = myStrokes.flatMap(s => s.points);
+    if (allPoints.length < 4) return false;
+
+    // Sample every Nth point to keep intersection check fast
+    const step = Math.max(1, Math.floor(allPoints.length / 150));
+    const sampled: Point[] = [];
+    for (let i = 0; i < allPoints.length; i += step) {
+      sampled.push(allPoints[i]);
+    }
+    // Always include the last point
+    if (sampled[sampled.length - 1] !== allPoints[allPoints.length - 1]) {
+      sampled.push(allPoints[allPoints.length - 1]);
+    }
+
+    // Check if any segment intersects a non-adjacent segment
+    for (let i = 0; i < sampled.length - 1; i++) {
+      for (let j = i + 2; j < sampled.length - 1; j++) {
+        if (segmentsIntersect(
+          sampled[i], sampled[i + 1],
+          sampled[j], sampled[j + 1]
+        )) {
+          return true;
+        }
+      }
+    }
+
+    // Fallback: check start-to-end distance
+    const firstPoint = allPoints[0];
+    const lastPoint = allPoints[allPoints.length - 1];
     const dx = firstPoint.x - lastPoint.x;
     const dy = firstPoint.y - lastPoint.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    return distance <= CLOSE_THRESHOLD;
+    return Math.sqrt(dx * dx + dy * dy) <= CLOSE_THRESHOLD;
   })();
 
   // Minimum ink validation (uses liveInk for real-time updates)
@@ -339,7 +379,7 @@ export default function DrawingCanvas() {
                   {!hasMinimumInk
                     ? "Use more ink to ready up"
                     : !isShapeClosed
-                      ? "Close your shape to ready up"
+                      ? "Enclose your shape to ready up"
                       : ""}
                 </p>
               </div>
