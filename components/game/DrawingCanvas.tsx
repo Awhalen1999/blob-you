@@ -1,17 +1,20 @@
-'use client';
+"use client";
 
-import { useRef, useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Check, Loader2 } from 'lucide-react';
-import { useGameStore } from '@/store/gameStore';
-import { usePartyKitContext } from '@/contexts/PartyKitContext';
-import { getMousePos, getTouchPos, clearCanvas } from '@/lib/drawing/canvas';
-import type { Point, Stroke } from '@/types/game';
-import Button from '@/components/ui/Button';
-import { HowToPlay } from '@/components/ui/HowToPlay';
+import { useRef, useState, useEffect, useCallback } from "react";
+import { ArrowLeft, Check, Loader2, RotateCcw } from "lucide-react";
+import { useGameStore } from "@/store/gameStore";
+import { usePartyKitContext } from "@/contexts/PartyKitContext";
+import { getMousePos, getTouchPos, clearCanvas } from "@/lib/drawing/canvas";
+import { mergeStrokes, simplifyPath, convexHull } from "@/lib/physics/geometry";
+import { PHYSICS } from "@/lib/constants";
+import type { Point, Stroke } from "@/types/game";
+import Button from "@/components/ui/Button";
+import { HowToPlay } from "@/components/ui/HowToPlay";
 
 const CANVAS_WIDTH = 600;
 const CANVAS_HEIGHT = 450;
 const MIN_INK_TO_READY = 15; // Minimum ink used before Ready button enables
+const CLOSE_THRESHOLD = 30; // Max distance (px) between first and last point to count as closed
 
 export default function DrawingCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -25,6 +28,8 @@ export default function DrawingCanvas() {
     addMyStroke,
     inkRemaining,
     decreaseInk,
+    clearStrokes,
+    resetInk,
     gameMode,
     reset,
     setPhase,
@@ -33,14 +38,14 @@ export default function DrawingCanvas() {
   const [partyState, partyActions] = usePartyKitContext();
 
   // Derive opponent ready status for multiplayer
-  const isMultiplayer = gameMode === 'multiplayer';
+  const isMultiplayer = gameMode === "multiplayer";
   const opponentReady = isMultiplayer
-    ? partyState.role === 'host'
+    ? partyState.role === "host"
       ? partyState.roomState?.guestReady
       : partyState.roomState?.hostReady
     : false;
   const opponentName = isMultiplayer
-    ? partyState.role === 'host'
+    ? partyState.role === "host"
       ? partyState.roomState?.guestName
       : partyState.roomState?.hostName
     : null;
@@ -77,15 +82,47 @@ export default function DrawingCanvas() {
   const redrawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     clearCanvas(ctx, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    ctx.strokeStyle = '#1f2937';
+    // Draw convex hull preview (behind strokes)
+    const allStrokes =
+      currentStroke.length >= 2
+        ? [...myStrokes, { points: currentStroke, timestamp: 0 }]
+        : myStrokes;
+
+    if (allStrokes.length > 0) {
+      const rawPoints = mergeStrokes(allStrokes);
+      if (rawPoints.length >= PHYSICS.MIN_VERTICES) {
+        let hullPoints = simplifyPath(rawPoints, PHYSICS.SIMPLIFY_TOLERANCE);
+        hullPoints = convexHull(hullPoints);
+
+        if (hullPoints.length >= 3) {
+          // Draw filled hull shape
+          ctx.fillStyle = "rgba(74, 222, 128, 0.12)";
+          ctx.strokeStyle = "rgba(74, 222, 128, 0.35)";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([6, 4]);
+          ctx.beginPath();
+          ctx.moveTo(hullPoints[0].x, hullPoints[0].y);
+          for (let i = 1; i < hullPoints.length; i++) {
+            ctx.lineTo(hullPoints[i].x, hullPoints[i].y);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+    }
+
+    // Draw strokes on top
+    ctx.strokeStyle = "#1f2937";
     ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
 
     for (const stroke of myStrokes) {
       if (stroke.points.length < 2) continue;
@@ -198,11 +235,19 @@ export default function DrawingCanvas() {
     if (isReady || !hasMinimumInk) return;
     setIsReady(true);
 
-    if (gameMode === 'npc') {
-      setPhase('fighting');
-    } else if (gameMode === 'multiplayer') {
+    if (gameMode === "npc") {
+      setPhase("fighting");
+    } else if (gameMode === "multiplayer") {
       partyActions.sendReady(myStrokes);
     }
+  };
+
+  const handleClear = () => {
+    if (isReady) return;
+    clearStrokes();
+    resetInk();
+    setCurrentStroke([]);
+    setLiveInk(100);
   };
 
   const handleBack = () => {
@@ -212,10 +257,26 @@ export default function DrawingCanvas() {
     reset();
   };
 
+  // Check if shape is closed (first point near last point)
+  const isShapeClosed = (() => {
+    if (myStrokes.length === 0) return false;
+    const firstStroke = myStrokes[0];
+    const lastStroke = myStrokes[myStrokes.length - 1];
+    if (firstStroke.points.length === 0 || lastStroke.points.length === 0)
+      return false;
+
+    const firstPoint = firstStroke.points[0];
+    const lastPoint = lastStroke.points[lastStroke.points.length - 1];
+    const dx = firstPoint.x - lastPoint.x;
+    const dy = firstPoint.y - lastPoint.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    return distance <= CLOSE_THRESHOLD;
+  })();
+
   // Minimum ink validation (uses liveInk for real-time updates)
   const inkUsed = 100 - liveInk;
   const hasMinimumInk = inkUsed >= MIN_INK_TO_READY;
-  const canSubmit = hasMinimumInk && !isReady;
+  const canSubmit = hasMinimumInk && isShapeClosed && !isReady;
 
   // Status flags
   const inkLow = liveInk <= 30;
@@ -231,110 +292,144 @@ export default function DrawingCanvas() {
         icon={<ArrowLeft className="w-4 h-4" />}
         className="absolute top-4 left-4 z-10 max-[768px]:top-6"
       >
-        {isMultiplayer ? 'Leave Lobby' : 'Main Menu'}
+        {isMultiplayer ? "Leave Lobby" : "Main Menu"}
       </Button>
 
       <HowToPlay />
 
       <div className="flex flex-col items-center justify-center gap-md h-full">
         {/* Main drawing area */}
-      <div className="flex gap-md items-stretch">
-        {/* Canvas */}
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_WIDTH}
-          height={CANVAS_HEIGHT}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          className={`
+        <div className="flex gap-md items-stretch">
+          {/* Canvas wrapper */}
+          <div className="relative">
+            <canvas
+              ref={canvasRef}
+              width={CANVAS_WIDTH}
+              height={CANVAS_HEIGHT}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              className={`
             rounded-md border-4 cursor-crosshair touch-none
             shadow-[0_2px_8px_rgba(0,0,0,0.1)]
-            ${isReady ? 'opacity-70 pointer-events-none' : ''}
-            ${inkCritical ? 'border-red-400' : inkLow ? 'border-orange-400' : 'border-black/40'}
+            ${isReady ? "opacity-70 pointer-events-none" : ""}
+            ${inkCritical ? "border-red-400" : inkLow ? "border-orange-400" : "border-black/40"}
           `}
-          style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
-        />
-
-        {/* Ink meter - Gamified vertical bar */}
-        <div className="flex flex-col items-center gap-sm">
-          <span className="text-xs font-bold text-white/70">INK</span>
-          <div
-            className={`
-              w-8 flex-1 bg-black/60 border-4 rounded-md relative overflow-hidden
-              transition-all duration-200
-              ${inkCritical
-                ? 'border-red-400 animate-[shake_0.3s_ease-in-out_infinite]'
-                : inkLow
-                  ? 'border-orange-400 animate-[shake_0.5s_ease-in-out_infinite]'
-                  : 'border-white/40'
-              }
-            `}
-          >
-            {/* Ink fill */}
-            <div
-              className={`
-                absolute bottom-0 left-0 right-0 transition-all duration-75
-                ${inkCritical
-                  ? 'bg-red-400'
-                  : inkLow
-                    ? 'bg-orange-400'
-                    : 'bg-green-500'
-                }
-              `}
-              style={{ height: `${liveInk}%` }}
+              style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}
             />
-            {/* Threshold marker - clear indicator at 15% used mark */}
-            <div 
-              className="absolute w-full border-t-2 border-red-600 pointer-events-none z-10"
-              style={{ bottom: `${100 - MIN_INK_TO_READY}%` }}
-            />
-            {/* Meter lines */}
-            <div className="absolute inset-0 flex flex-col justify-between py-1 pointer-events-none">
-              {[...Array(10)].map((_, i) => (
-                <div key={i} className="w-full h-px bg-purple-900/30" />
-              ))}
-            </div>
-          </div>
-          <span className="text-xs font-bold text-white/70">{Math.round(liveInk)}%</span>
-        </div>
-      </div>
 
-      {/* Ready section */}
-      <div className="flex flex-col items-center gap-2">
-        <Button
-          onClick={handleReady}
-          disabled={!canSubmit}
-          variant={isReady ? 'success' : 'primary'}
-          size="lg"
-          icon={isReady ? <Check className="w-5 h-5" /> : undefined}
-        >
-          {isReady ? 'Ready!' : 'Ready'}
-        </Button>
-
-        {/* Opponent status - multiplayer only */}
-        {isMultiplayer && (
-          <div className="flex items-center gap-2 text-sm">
-            {opponentReady ? (
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-green-500/20 border border-green-500/50 rounded text-green-400">
-                <Check className="w-3.5 h-3.5" />
-                <span className="font-bold">{opponentName || 'Opponent'}</span>
-                <span>is ready!</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-white/10 border border-white/20 rounded text-white/60">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Waiting for</span>
-                <span className="font-bold">{opponentName || 'opponent'}</span>
+            {/* Canvas hint overlay */}
+            {!isDrawing && !isReady && myStrokes.length > 0 && !canSubmit && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none z-10">
+                <p className="text-black/50 text-xs bg-red-400/20 backdrop-blur-sm px-3 py-1 rounded-md border border-red-400/50">
+                  {!hasMinimumInk
+                    ? "Use more ink to ready up"
+                    : !isShapeClosed
+                      ? "Close your shape to ready up"
+                      : ""}
+                </p>
               </div>
             )}
           </div>
-        )}
-      </div>
+
+          {/* Ink meter - Gamified vertical bar */}
+          <div className="flex flex-col items-center gap-sm">
+            <span className="text-xs font-bold text-white/70">INK</span>
+            <div
+              className={`
+              w-8 flex-1 bg-black/60 border-4 rounded-md relative overflow-hidden
+              transition-all duration-200
+              ${
+                inkCritical
+                  ? "border-red-400 animate-[shake_0.3s_ease-in-out_infinite]"
+                  : inkLow
+                    ? "border-orange-400 animate-[shake_0.5s_ease-in-out_infinite]"
+                    : "border-white/40"
+              }
+            `}
+            >
+              {/* Ink fill */}
+              <div
+                className={`
+                absolute bottom-0 left-0 right-0 transition-all duration-75
+                ${
+                  inkCritical
+                    ? "bg-red-400"
+                    : inkLow
+                      ? "bg-orange-400"
+                      : "bg-green-500"
+                }
+              `}
+                style={{ height: `${liveInk}%` }}
+              />
+              {/* Threshold marker - clear indicator at 15% used mark */}
+              <div
+                className="absolute w-full border-t-2 border-red-600 pointer-events-none z-10"
+                style={{ bottom: `${100 - MIN_INK_TO_READY}%` }}
+              />
+              {/* Meter lines */}
+              <div className="absolute inset-0 flex flex-col justify-between py-1 pointer-events-none">
+                {[...Array(10)].map((_, i) => (
+                  <div key={i} className="w-full h-px bg-purple-900/30" />
+                ))}
+              </div>
+            </div>
+            <span className="text-xs font-bold text-white/70">
+              {Math.round(liveInk)}%
+            </span>
+          </div>
+        </div>
+
+        {/* Ready section */}
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleClear}
+              disabled={isReady || myStrokes.length === 0}
+              variant="secondary"
+              size="lg"
+              icon={<RotateCcw className="w-4 h-4" />}
+            >
+              Clear
+            </Button>
+            <Button
+              onClick={handleReady}
+              disabled={!canSubmit}
+              variant={isReady ? "success" : "primary"}
+              size="lg"
+              icon={isReady ? <Check className="w-5 h-5" /> : undefined}
+            >
+              {isReady ? "Ready!" : "Ready"}
+            </Button>
+          </div>
+
+          {/* Opponent status - multiplayer only */}
+          {isMultiplayer && (
+            <div className="flex items-center gap-2 text-sm">
+              {opponentReady ? (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-green-500/20 border border-green-500/50 rounded text-green-400">
+                  <Check className="w-3.5 h-3.5" />
+                  <span className="font-bold">
+                    {opponentName || "Opponent"}
+                  </span>
+                  <span>is ready!</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-white/10 border border-white/20 rounded text-white/60">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Waiting for</span>
+                  <span className="font-bold">
+                    {opponentName || "opponent"}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
