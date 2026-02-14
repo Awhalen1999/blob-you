@@ -17,13 +17,20 @@ const MIN_INK_TO_READY = 15; // Minimum ink used before Ready button enables
 const CLOSE_THRESHOLD = 30; // Max distance (px) between first and last point to count as closed
 
 /** Check if two line segments intersect */
-function segmentsIntersect(a1: Point, a2: Point, b1: Point, b2: Point): boolean {
+function segmentsIntersect(
+  a1: Point,
+  a2: Point,
+  b1: Point,
+  b2: Point,
+): boolean {
   const d1 = cross(b1, b2, a1);
   const d2 = cross(b1, b2, a2);
   const d3 = cross(a1, a2, b1);
   const d4 = cross(a1, a2, b2);
-  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
-      ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+  if (
+    ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+    ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
+  ) {
     return true;
   }
   return false;
@@ -279,7 +286,7 @@ export default function DrawingCanvas() {
     if (myStrokes.length === 0) return false;
 
     // Collect all points into one path, sampled for performance
-    const allPoints = myStrokes.flatMap(s => s.points);
+    const allPoints = myStrokes.flatMap((s) => s.points);
     if (allPoints.length < 4) return false;
 
     // Sample every Nth point to keep intersection check fast
@@ -296,10 +303,14 @@ export default function DrawingCanvas() {
     // Check if any segment intersects a non-adjacent segment
     for (let i = 0; i < sampled.length - 1; i++) {
       for (let j = i + 2; j < sampled.length - 1; j++) {
-        if (segmentsIntersect(
-          sampled[i], sampled[i + 1],
-          sampled[j], sampled[j + 1]
-        )) {
+        if (
+          segmentsIntersect(
+            sampled[i],
+            sampled[i + 1],
+            sampled[j],
+            sampled[j + 1],
+          )
+        ) {
           return true;
         }
       }
@@ -374,15 +385,19 @@ export default function DrawingCanvas() {
 
             {/* Canvas hint overlay */}
             {!isDrawing && !isReady && myStrokes.length > 0 && !canSubmit && (
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none z-10">
-                <p className="text-black/50 text-xs bg-red-300/25 backdrop-blur-sm px-3 py-1 rounded-md border border-red-300/50">
+              <button
+                onClick={handleClear}
+                className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 text-black/50 text-xs leading-none bg-red-300/25 backdrop-blur-sm px-3 py-1.5 rounded-md border border-red-300/50 hover:bg-red-300/40 hover:text-black/60 transition-colors cursor-pointer whitespace-nowrap"
+              >
+                <span>
                   {!hasMinimumInk
                     ? "Use more ink to ready up"
                     : !isShapeClosed
                       ? "Enclose your shape to ready up"
                       : ""}
-                </p>
-              </div>
+                </span>
+                <RotateCcw className="w-3 h-3" />
+              </button>
             )}
           </div>
 
