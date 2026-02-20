@@ -813,13 +813,16 @@ export default function FightArena() {
 
       {/* Arena with power-up overlays */}
       <div
-        className="relative rounded-md"
+        className="relative overflow-hidden"
         style={{
+          width: ARENA.WIDTH,
+          height: ARENA.HEIGHT,
+          borderRadius: '6px',
           outline: borderFlash ? `4px solid ${borderFlash}` : '4px solid rgba(255,255,255,0.4)',
           transition: borderFlash ? 'outline-color 0.05s ease-in' : 'outline-color 0.6s ease-out',
         }}
       >
-        <div ref={containerRef} style={{ width: ARENA.WIDTH, height: ARENA.HEIGHT }} />
+        <div ref={containerRef} style={{ width: ARENA.WIDTH, height: ARENA.HEIGHT, borderRadius: '6px' }} />
 
         {bloodParticles.map((p) => (
           <div
