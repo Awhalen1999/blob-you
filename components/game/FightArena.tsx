@@ -170,6 +170,15 @@ export default function FightArena() {
   const [playerPowerUps, setPlayerPowerUps] = useState<PowerUpType[]>([]);
   const [opponentPowerUps, setOpponentPowerUps] = useState<PowerUpType[]>([]);
 
+  // Arena border flash on power-up pickup
+  const [borderFlash, setBorderFlash] = useState<string | null>(null);
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggerBorderFlash = (color: string) => {
+    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    setBorderFlash(color);
+    flashTimeoutRef.current = setTimeout(() => setBorderFlash(null), 700);
+  };
+
   // Blood particles
   const [bloodParticles, setBloodParticles] = useState<BloodParticle[]>([]);
   const particleIdRef = useRef(0);
@@ -318,7 +327,7 @@ export default function FightArena() {
     });
     renderRef.current = render;
     render.canvas.style.borderRadius = '6px';
-    render.canvas.style.border = '4px solid rgba(255, 255, 255, 0.4)';
+    render.canvas.style.display = 'block';
 
     Matter.Composite.add(engine.world, createArenaWalls());
 
@@ -506,6 +515,7 @@ export default function FightArena() {
               setPowerUps((prev) => prev.filter((p) => p.id !== powerUpBody.id));
 
               const type = powerUpData.type;
+              triggerBorderFlash(POWERUP_COLORS[type]);
               if (type === 'damage') {
                 if (picker === 'player') {
                   playerDamageMultRef.current *= POWERUP.DOUBLE_DAMAGE_MULT;
@@ -802,7 +812,13 @@ export default function FightArena() {
       </div>
 
       {/* Arena with power-up overlays */}
-      <div className="relative">
+      <div
+        className="relative rounded-md"
+        style={{
+          outline: borderFlash ? `4px solid ${borderFlash}` : '4px solid rgba(255,255,255,0.4)',
+          transition: borderFlash ? 'outline-color 0.05s ease-in' : 'outline-color 0.6s ease-out',
+        }}
+      >
         <div ref={containerRef} style={{ width: ARENA.WIDTH, height: ARENA.HEIGHT }} />
 
         {bloodParticles.map((p) => (
@@ -835,8 +851,8 @@ export default function FightArena() {
                 borderColor: POWERUP_BORDER_COLORS[powerUp.type],
                 boxShadow:
                   'inset 0 1px 0 rgba(255,255,255,0.25), 0 2px 0 rgba(0,0,0,0.35)',
-                left: powerUp.x + 4,
-                top: powerUp.y + 4,
+                left: powerUp.x,
+                top: powerUp.y,
                 transform: 'translate(-50%, -50%)',
               }}
             >
