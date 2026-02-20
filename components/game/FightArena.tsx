@@ -124,7 +124,7 @@ function StatsTooltip({ stats, align = 'left' }: { stats: BlobStats | null; alig
   );
 }
 
-type BloodParticle = { id: number; x: number; y: number; dx: number; dy: number; size: number; color: string };
+type BloodParticle = { id: number; x: number; y: number; dx: number; dy: number; size: number; height: number; color: string; borderRadius: string; rot: string; dur: string };
 
 export default function FightArena() {
   // Matter.js refs
@@ -173,6 +173,19 @@ export default function FightArena() {
   // Blood particles
   const [bloodParticles, setBloodParticles] = useState<BloodParticle[]>([]);
   const particleIdRef = useRef(0);
+  type ParticleMode = 'none' | 'normal' | 'extreme';
+  const [particleMode, setParticleMode] = useState<ParticleMode>(() => {
+    try { return (localStorage.getItem('particleMode') as ParticleMode) ?? 'normal'; } catch { return 'normal'; }
+  });
+  const particleModeRef = useRef(particleMode);
+  particleModeRef.current = particleMode;
+  const cycleParticleMode = () => {
+    setParticleMode((prev) => {
+      const next: ParticleMode = prev === 'none' ? 'normal' : prev === 'normal' ? 'extreme' : 'none';
+      try { localStorage.setItem('particleMode', next); } catch {}
+      return next;
+    });
+  };
 
   const {
     myStrokes,
@@ -571,27 +584,37 @@ export default function FightArena() {
           const opponentBody = isOpponentA ? bodyA : bodyB;
 
           // Spawn blood particles at midpoint between blobs
-          const cx = (playerBody.position.x + opponentBody.position.x) / 2;
-          const cy = (playerBody.position.y + opponentBody.position.y) / 2;
-          const count = 8 + Math.floor(Math.random() * 6);
-          const newParticles: BloodParticle[] = Array.from({ length: count }, () => {
-            const angle = Math.random() * Math.PI * 2;
-            const speed = 30 + Math.random() * 60;
-            const size = 4 + Math.random() * 6;
-            const reds = ['#8b0000', '#a00010', '#cc0020', '#ff1a1a', '#b22222'];
-            return {
-              id: ++particleIdRef.current,
-              x: cx,
-              y: cy,
-              dx: Math.cos(angle) * speed,
-              dy: Math.sin(angle) * speed,
-              size,
-              color: reds[Math.floor(Math.random() * reds.length)],
-            };
-          });
-          setBloodParticles((prev) => [...prev, ...newParticles]);
-          const ids = newParticles.map((p) => p.id);
-          setTimeout(() => setBloodParticles((prev) => prev.filter((p) => !ids.includes(p.id))), 600);
+          const mode = particleModeRef.current;
+          if (mode !== 'none') {
+            const cx = (playerBody.position.x + opponentBody.position.x) / 2;
+            const cy = (playerBody.position.y + opponentBody.position.y) / 2;
+            const isExtreme = mode === 'extreme';
+            const count = isExtreme ? 80 : 40;
+            // True blood palette: deep crimson, dark red, wet red — no bright arcade reds
+            const reds = ['#6b0000', '#8b0000', '#a50000', '#7a0010', '#3d0000'];
+            const lifeMs = isExtreme ? 900 : 900;
+            const newParticles: BloodParticle[] = Array.from({ length: count }, () => {
+              const angle = Math.random() * Math.PI * 2;
+              const speed = isExtreme ? 80 + Math.random() * 160 : 40 + Math.random() * 80;
+              const size = isExtreme ? 5 + Math.random() * 8 : 2.5 + Math.random() * 4;
+              return {
+                id: ++particleIdRef.current,
+                x: cx,
+                y: cy,
+                dx: Math.cos(angle) * speed,
+                dy: Math.sin(angle) * speed,
+                size,
+                height: size,
+                color: reds[Math.floor(Math.random() * reds.length)],
+                borderRadius: '50%',
+                rot: '0deg',
+                dur: `${lifeMs}ms`,
+              };
+            });
+            setBloodParticles((prev) => [...prev, ...newParticles]);
+            const ids = newParticles.map((p) => p.id);
+            setTimeout(() => setBloodParticles((prev) => prev.filter((p) => !ids.includes(p.id))), lifeMs + 100);
+          }
 
           let dmgToOpponent =
             calculateCollisionDamage(playerBody, pStats, opponentBody) *
@@ -758,6 +781,20 @@ export default function FightArena() {
 
       <HowToPlay />
 
+      {/* Particle mode toggle */}
+      <button
+        onClick={cycleParticleMode}
+        className="absolute bottom-4 right-4 z-10 text-xs font-bold px-2 py-1 rounded border-2 border-b-[3px] transition-colors"
+        style={{
+          backgroundColor: particleMode === 'none' ? '#374151' : particleMode === 'normal' ? '#7f1d1d' : '#dc2626',
+          borderColor: particleMode === 'none' ? '#4b5563' : particleMode === 'normal' ? '#991b1b' : '#7f1d1d',
+          color: '#fff',
+        }}
+        title="Toggle blood particle effects"
+      >
+        {particleMode === 'none' ? '🩸 Off' : particleMode === 'normal' ? '🩸 Normal' : '🩸 Extreme'}
+      </button>
+
       {/* Health bars */}
       <div className="flex justify-between w-full max-w-3xl mb-md px-sm">
         <HealthBar current={playerHp} max={playerMaxHp} label="Your Blob" isPlayer wins={playerSessionWins} />
@@ -776,10 +813,13 @@ export default function FightArena() {
               left: p.x,
               top: p.y,
               width: p.size,
-              height: p.size,
+              height: p.height,
               backgroundColor: p.color,
+              borderRadius: p.borderRadius,
               '--dx': `${p.dx}px`,
               '--dy': `${p.dy}px`,
+              '--rot': p.rot,
+              '--dur': p.dur,
             } as React.CSSProperties}
           />
         ))}
