@@ -124,6 +124,8 @@ function StatsTooltip({ stats, align = 'left' }: { stats: BlobStats | null; alig
   );
 }
 
+type BloodParticle = { id: number; x: number; y: number; dx: number; dy: number; size: number; color: string };
+
 export default function FightArena() {
   // Matter.js refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -167,6 +169,10 @@ export default function FightArena() {
   const [powerUps, setPowerUps] = useState<ArenaPoweUp[]>([]);
   const [playerPowerUps, setPlayerPowerUps] = useState<PowerUpType[]>([]);
   const [opponentPowerUps, setOpponentPowerUps] = useState<PowerUpType[]>([]);
+
+  // Blood particles
+  const [bloodParticles, setBloodParticles] = useState<BloodParticle[]>([]);
+  const particleIdRef = useRef(0);
 
   const {
     myStrokes,
@@ -564,6 +570,29 @@ export default function FightArena() {
           const playerBody = isPlayerA ? bodyA : bodyB;
           const opponentBody = isOpponentA ? bodyA : bodyB;
 
+          // Spawn blood particles at midpoint between blobs
+          const cx = (playerBody.position.x + opponentBody.position.x) / 2;
+          const cy = (playerBody.position.y + opponentBody.position.y) / 2;
+          const count = 8 + Math.floor(Math.random() * 6);
+          const newParticles: BloodParticle[] = Array.from({ length: count }, () => {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 30 + Math.random() * 60;
+            const size = 4 + Math.random() * 6;
+            const reds = ['#8b0000', '#a00010', '#cc0020', '#ff1a1a', '#b22222'];
+            return {
+              id: ++particleIdRef.current,
+              x: cx,
+              y: cy,
+              dx: Math.cos(angle) * speed,
+              dy: Math.sin(angle) * speed,
+              size,
+              color: reds[Math.floor(Math.random() * reds.length)],
+            };
+          });
+          setBloodParticles((prev) => [...prev, ...newParticles]);
+          const ids = newParticles.map((p) => p.id);
+          setTimeout(() => setBloodParticles((prev) => prev.filter((p) => !ids.includes(p.id))), 600);
+
           let dmgToOpponent =
             calculateCollisionDamage(playerBody, pStats, opponentBody) *
             playerDamageMultRef.current;
@@ -738,6 +767,22 @@ export default function FightArena() {
       {/* Arena with power-up overlays */}
       <div className="relative">
         <div ref={containerRef} style={{ width: ARENA.WIDTH, height: ARENA.HEIGHT }} />
+
+        {bloodParticles.map((p) => (
+          <div
+            key={p.id}
+            className="blood-particle"
+            style={{
+              left: p.x,
+              top: p.y,
+              width: p.size,
+              height: p.size,
+              backgroundColor: p.color,
+              '--dx': `${p.dx}px`,
+              '--dy': `${p.dy}px`,
+            } as React.CSSProperties}
+          />
+        ))}
 
         {powerUps.map((powerUp) => {
           const Icon = POWERUP_ICONS[powerUp.type];
