@@ -18,7 +18,7 @@ type GameStore = {
 
   // Battle
   battleSeed: number | null;
-  winner: 'me' | 'opponent' | null;
+  winner: 'me' | 'opponent' | 'tie' | null;
   playerSessionWins: number;
   opponentSessionWins: number;
 
@@ -34,7 +34,7 @@ type GameStore = {
   decreaseInk: (amount: number) => void;
   resetInk: () => void;
   setBattleSeed: (seed: number | null) => void;
-  setWinner: (winner: 'me' | 'opponent' | null) => void;
+  setWinner: (winner: 'me' | 'opponent' | 'tie' | null) => void;
   addPlayerWin: () => void;
   addOpponentWin: () => void;
   reset: () => void;

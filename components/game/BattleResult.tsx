@@ -5,6 +5,7 @@ import Button from '@/components/ui/Button';
 
 interface BattleResultProps {
   isVictory: boolean;
+  isTie: boolean;
   isMultiplayer: boolean;
   myRematchRequested: boolean;
   opponentRematchRequested: boolean;
@@ -12,32 +13,39 @@ interface BattleResultProps {
   onMainMenu: () => void;
 }
 
-export default function BattleResult({ 
-  isVictory, 
+export default function BattleResult({
+  isVictory,
+  isTie,
   isMultiplayer,
   myRematchRequested,
   opponentRematchRequested,
-  onRematch, 
-  onMainMenu 
+  onRematch,
+  onMainMenu
 }: BattleResultProps) {
   const bothReady = myRematchRequested && opponentRematchRequested;
+
+  const titleColor = isTie ? 'text-yellow-400' : isVictory ? 'text-green-400' : 'text-red-500';
+  const titleShadow = isTie
+    ? '4px 4px 0px #a16207, 8px 8px 0px rgba(0,0,0,0.3), 0 0 20px rgba(250,204,21,0.4)'
+    : isVictory
+    ? '4px 4px 0px #15803d, 8px 8px 0px rgba(0,0,0,0.3), 0 0 20px rgba(74,222,128,0.4)'
+    : '4px 4px 0px #b91c1c, 8px 8px 0px rgba(0,0,0,0.3), 0 0 20px rgba(239,68,68,0.4)';
+  const titleText = isTie ? 'DRAW!' : isVictory ? 'VICTORY!' : 'DEFEAT';
+  const subText = isTie
+    ? 'BOTH BLOBS HAVE FALLEN...'
+    : isVictory
+    ? 'YOUR BLOB HAS WON THE BATTLE!'
+    : 'YOUR BLOB HAS BEEN DEFEATED...';
+
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/70 z-50">
       <div className="flex flex-col items-center gap-6 p-lg">
         {/* Result text - retro Nintendo style */}
         <h1
-          className={`
-            text-7xl font-black uppercase tracking-wider
-            ${isVictory ? 'text-green-400' : 'text-red-500'}
-          `}
-          style={{
-            textShadow: isVictory
-              ? '4px 4px 0px #15803d, 8px 8px 0px rgba(0,0,0,0.3), 0 0 20px rgba(74,222,128,0.4)'
-              : '4px 4px 0px #b91c1c, 8px 8px 0px rgba(0,0,0,0.3), 0 0 20px rgba(239,68,68,0.4)',
-            letterSpacing: '0.15em',
-          }}
+          className={`text-7xl font-black uppercase tracking-wider ${titleColor}`}
+          style={{ textShadow: titleShadow, letterSpacing: '0.15em' }}
         >
-          {isVictory ? 'VICTORY!' : 'DEFEAT'}
+          {titleText}
         </h1>
 
         {/* Sub text - retro style */}
@@ -47,9 +55,7 @@ export default function BattleResult({
             textShadow: '2px 2px 0px rgba(0,0,0,0.5), 0 0 10px rgba(0,0,0,0.3)',
           }}
         >
-          {isVictory
-            ? 'YOUR BLOB HAS WON THE BATTLE!'
-            : 'YOUR BLOB HAS BEEN DEFEATED...'}
+          {subText}
         </p>
 
         {/* Rematch status for multiplayer - consistent spacing */}

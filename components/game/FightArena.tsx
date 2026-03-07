@@ -163,6 +163,7 @@ export default function FightArena() {
   const [opponentStats, setOpponentStats] = useState<BlobStats | null>(null);
   const [battleOver, setBattleOver] = useState(false);
   const [isVictory, setIsVictory] = useState(false);
+  const [isTie, setIsTie] = useState(false);
   const [opponentName, setOpponentName] = useState('Opponent');
 
   // Power-up UI state
@@ -697,7 +698,21 @@ export default function FightArena() {
   useEffect(() => {
     if (battleOver) return;
 
-    if (playerHp <= 0) {
+    if (playerHp <= 0 && opponentHp <= 0) {
+      // Simultaneous kill — tie
+      if (engineRef.current && playerBodyRef.current) {
+        Matter.Composite.remove(engineRef.current.world, playerBodyRef.current);
+      }
+      if (engineRef.current && opponentBodyRef.current) {
+        Matter.Composite.remove(engineRef.current.world, opponentBodyRef.current);
+      }
+      requestAnimationFrame(() => {
+        setBattleOver(true);
+        setIsVictory(false);
+        setIsTie(true);
+        setWinner('tie');
+      });
+    } else if (playerHp <= 0) {
       if (engineRef.current && playerBodyRef.current) {
         Matter.Composite.remove(engineRef.current.world, playerBodyRef.current);
       }
@@ -729,6 +744,8 @@ export default function FightArena() {
       setTimeout(() => {
         cleanup();
         setBattleOver(false);
+        setIsVictory(false);
+        setIsTie(false);
         setWinner(null);
         setPlayerPowerUps([]);
         setOpponentPowerUps([]);
@@ -751,6 +768,8 @@ export default function FightArena() {
       // Offline mode - instant rematch
       cleanup();
       setBattleOver(false);
+      setIsVictory(false);
+      setIsTie(false);
       setWinner(null);
       setPlayerPowerUps([]);
       setOpponentPowerUps([]);
@@ -866,8 +885,9 @@ export default function FightArena() {
       </div>
 
       {battleOver && (
-        <BattleResult 
-          isVictory={isVictory} 
+        <BattleResult
+          isVictory={isVictory}
+          isTie={isTie}
           isMultiplayer={isMultiplayer}
           myRematchRequested={myRematchRequested}
           opponentRematchRequested={opponentRematchRequested}
