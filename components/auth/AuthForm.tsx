@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { auth } from '@/lib/firebase';
 import { getFirebaseErrorMessage } from '@/lib/errors';
@@ -11,6 +12,7 @@ import {
   GithubAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInWithCustomToken,
 } from 'firebase/auth';
 import Button from '@/components/ui/Button';
 
@@ -43,15 +45,39 @@ export default function AuthForm() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  
+
   // ui state
   const [mode, setMode] = useState<AuthMode>('login');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const searchParams = useSearchParams();
+
+  // handle discord redirect — exchange token and sign in
+  useEffect(() => {
+    const discordToken = searchParams.get('discord_token');
+    if (!discordToken) return;
+
+    setIsLoading(true);
+    signInWithCustomToken(auth, discordToken)
+      .then(() => window.history.replaceState({}, '', '/'))
+      .catch(() => setError('Discord sign-in failed. Please try again.'))
+      .finally(() => setIsLoading(false));
+  }, [searchParams]);
+
   const isSignUp = mode === 'signup';
 
   // auth handlers
+  const handleDiscordSignIn = () => {
+    const params = new URLSearchParams({
+      client_id: process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID!,
+      redirect_uri: `${window.location.origin}/api/auth/discord`,
+      response_type: 'code',
+      scope: 'identify',
+    });
+    window.location.href = `https://discord.com/oauth2/authorize?${params}`;
+  };
+
   const handleOAuthSignIn = async (provider: 'google' | 'github') => {
     setError('');
     setIsLoading(true);
@@ -139,6 +165,16 @@ export default function AuthForm() {
         >
           <Image src="/github.svg" alt="" width={16} height={16} className="brightness-0 invert" />
           Sign in with GitHub
+        </button>
+
+        <button
+          type="button"
+          onClick={handleDiscordSignIn}
+          disabled={isLoading}
+          className="w-full flex items-center justify-center gap-sm p-sm bg-[#5865F2] text-white rounded-md hover:bg-[#4752C4] transition-colors disabled:opacity-50 text-sm font-medium cursor-pointer"
+        >
+          <Image src="/discord.svg" alt="" width={16} height={16} className="brightness-0 invert" />
+          Sign in with Discord
         </button>
       </div>
 
