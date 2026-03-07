@@ -68,6 +68,16 @@ export default function Home() {
   const [partyState, partyActions] = usePartyKitContext();
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'Player';
+  const [stkBalance, setStkBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user?.uid.startsWith('discord:')) return;
+    const discordId = user.uid.split(':')[1];
+    fetch(`/api/stackcoin/balance?discord_id=${discordId}`)
+      .then((r) => r.json())
+      .then(({ balance }) => { if (balance !== null) setStkBalance(balance); })
+      .catch(() => {});
+  }, [user]);
 
   // Sync PartyKit state to game store
   useEffect(() => {
@@ -366,6 +376,13 @@ export default function Home() {
       >
         Sign Out
       </Button>
+
+      {stkBalance !== null && (
+        <div className="absolute bottom-4 left-4 z-10 transparent-bg border border-white/20 rounded-sm px-3 py-2 text-sm font-medium text-white flex items-center gap-2">
+          <span>🪙</span>
+          <span>{stkBalance.toLocaleString()} STK</span>
+        </div>
+      )}
 
       <HowToPlay />
 
