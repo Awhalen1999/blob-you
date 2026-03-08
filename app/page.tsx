@@ -298,9 +298,9 @@ export default function Home() {
         <header className="mb-md text-center">
           <h1 className="text-xl font-bold text-white flex items-center justify-center gap-2">
             {isGambaLobby ? (
-              <><Image src="/stack-coin.png" alt="STK" width={16} height={16} />GAMBA — {pendingWagerAmount} STK<Image src="/stack-coin.png" alt="STK" width={16} height={16} /></>
+              <>🔥 GAMBA — <Image src="/stack-coin.png" alt="STK" width={16} height={16} />{pendingWagerAmount} STK 🔥</>
             ) : wagerAmount > 0 ? (
-              <><Image src="/stack-coin.png" alt="STK" width={16} height={16} />GAMBA — {wagerAmount} STK<Image src="/stack-coin.png" alt="STK" width={16} height={16} /></>
+              <>🔥 GAMBA — <Image src="/stack-coin.png" alt="STK" width={16} height={16} />{wagerAmount} STK 🔥</>
             ) : hasOpponent ? 'READY TO BATTLE!' : 'WAITING FOR OPPONENT'}
           </h1>
         </header>
