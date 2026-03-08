@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Could not find StackCoin users' }, { status: 404 });
   }
 
-  const label = `blob.you wager — ${amount} STK`;
+  const label = `blob.you wager — ${amount} STK (accept within 5 min)`;
 
   const [hostRequestId, guestRequestId] = await Promise.all([
     createPaymentRequest(hostStackcoinId, amount, label),

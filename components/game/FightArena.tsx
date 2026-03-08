@@ -906,6 +906,7 @@ export default function FightArena() {
           isTie={isTie}
           isMultiplayer={isMultiplayer}
           isGamba={isGamba}
+          wagerDisputed={partyState.wagerDisputed}
           myRematchRequested={myRematchRequested}
           opponentRematchRequested={opponentRematchRequested}
           onRematch={handleRematch}

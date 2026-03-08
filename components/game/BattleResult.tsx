@@ -8,6 +8,7 @@ interface BattleResultProps {
   isTie: boolean;
   isMultiplayer: boolean;
   isGamba?: boolean;
+  wagerDisputed?: boolean;
   myRematchRequested: boolean;
   opponentRematchRequested: boolean;
   onRematch: () => void;
@@ -19,6 +20,7 @@ export default function BattleResult({
   isTie,
   isMultiplayer,
   isGamba = false,
+  wagerDisputed = false,
   myRematchRequested,
   opponentRematchRequested,
   onRematch,
@@ -59,6 +61,13 @@ export default function BattleResult({
         >
           {subText}
         </p>
+
+        {/* Gamba dispute/refund notice */}
+        {isGamba && wagerDisputed && (
+          <p className="text-orange-400 font-bold text-base uppercase tracking-wide">
+            Wager cancelled — coins refunded
+          </p>
+        )}
 
         {/* Rematch status for multiplayer - consistent spacing */}
         <div className="min-h-[32px] flex items-center justify-center">

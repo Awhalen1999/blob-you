@@ -220,6 +220,8 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
 
       case 'wager_dispute':
         setWagerDisputed(true);
+        setWagerStatus('none');
+        setWagerAmount(0);
         break;
     }
   }, []);

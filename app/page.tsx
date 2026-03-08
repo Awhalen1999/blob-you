@@ -403,6 +403,13 @@ export default function Home() {
                 ✅ Wager confirmed — {wagerAmount} STK each!
               </div>
             )}
+
+            {/* Dispute/refund notice */}
+            {partyState.wagerDisputed && (
+              <div className="text-center text-orange-400 font-bold text-sm py-2">
+                Wager cancelled — coins refunded
+              </div>
+            )}
           </div>
         )}
 
