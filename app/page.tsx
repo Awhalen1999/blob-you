@@ -232,8 +232,8 @@ export default function Home() {
         </header>
 
         {stkBalance !== null && (
-          <p className="text-center text-white/60 text-sm mb-md">
-            Your balance: <span className="text-white font-bold">{stkBalance.toLocaleString()} STK</span>
+          <p className="text-center text-white/60 text-sm mb-md flex items-center justify-center gap-1">
+            Your balance: <Image src="/stack-coin.png" alt="STK" width={14} height={14} /><span className="text-white font-bold">{stkBalance.toLocaleString()} STK</span>
           </p>
         )}
 
@@ -296,8 +296,12 @@ export default function Home() {
     return (
       <div className="transparent-bg w-full max-w-md mx-auto p-lg rounded-sm border border-white/20">
         <header className="mb-md text-center">
-          <h1 className="text-xl font-bold text-white">
-            {isGambaLobby ? `GAMBA — ${pendingWagerAmount} STK` : hasOpponent ? 'READY TO BATTLE!' : 'WAITING FOR OPPONENT'}
+          <h1 className="text-xl font-bold text-white flex items-center justify-center gap-2">
+            {isGambaLobby ? (
+              <><Image src="/stack-coin.png" alt="STK" width={16} height={16} />GAMBA — {pendingWagerAmount} STK<Image src="/stack-coin.png" alt="STK" width={16} height={16} /></>
+            ) : wagerAmount > 0 ? (
+              <><Image src="/stack-coin.png" alt="STK" width={16} height={16} />GAMBA — {wagerAmount} STK<Image src="/stack-coin.png" alt="STK" width={16} height={16} /></>
+            ) : hasOpponent ? 'READY TO BATTLE!' : 'WAITING FOR OPPONENT'}
           </h1>
         </header>
 
@@ -372,6 +376,11 @@ export default function Home() {
               <div className="flex flex-col gap-2">
                 <p className="text-center text-white font-bold text-sm">
                   Host wants to wager <span className="text-yellow-400">{wagerAmount} STK</span>
+                  {stkBalance !== null && (
+                    <span className="text-white/50 font-normal ml-2">
+                      (<Image src="/stack-coin.png" alt="STK" width={12} height={12} className="inline mb-0.5" /> {stkBalance.toLocaleString()} STK)
+                    </span>
+                  )}
                 </p>
                 {discordId && stkBalance !== null && stkBalance < wagerAmount && (
                   <p className="text-center text-red-400 text-xs">Insufficient balance ({stkBalance} STK)</p>
@@ -387,7 +396,7 @@ export default function Home() {
                     Accept Wager
                   </Button>
                   <Button
-                    onClick={partyActions.sendDeclineWager}
+                    onClick={handleBack}
                     variant="secondary"
                     size="md"
                     fullWidth
