@@ -740,7 +740,7 @@ export default function FightArena() {
 
   // Report winner to server for wager payout
   useEffect(() => {
-    if (!isMultiplayer || !battleOver || partyState.wagerStatus !== 'confirmed' || !partyState.role) return;
+    if (!isMultiplayer || !battleOver || partyState.wagerStatus !== 'confirmed' || !partyState.role || partyState.opponentLeft) return;
     let winnerRole: 'host' | 'guest' | 'tie';
     if (isTie) {
       winnerRole = 'tie';

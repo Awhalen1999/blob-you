@@ -547,7 +547,6 @@ export default class BlobRoom implements Party.Server {
   private async payoutWager(winner: 'host' | 'guest' | 'tie') {
     if (!this.hostDiscordId || !this.guestDiscordId) return;
 
-    this.state.wagerStatus = 'complete';
     this.log('wager_paying_out', { winner, amount: this.state.wagerAmount });
 
     try {
@@ -568,6 +567,8 @@ export default class BlobRoom implements Party.Server {
         // Payout failed — refund both (both paid at this point since status was 'confirmed')
         void this.issueRefundAndReset();
       } else {
+        // Only mark complete after confirmed 200 — keeps onClose refund guard intact until then
+        this.state.wagerStatus = 'complete';
         this.log('wager_payout_complete', { winner });
         this.broadcastAll({ type: 'wager_payout', winner, amount: this.state.wagerAmount });
       }
