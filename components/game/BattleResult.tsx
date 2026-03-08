@@ -7,6 +7,7 @@ interface BattleResultProps {
   isVictory: boolean;
   isTie: boolean;
   isMultiplayer: boolean;
+  isGamba?: boolean;
   myRematchRequested: boolean;
   opponentRematchRequested: boolean;
   onRematch: () => void;
@@ -17,6 +18,7 @@ export default function BattleResult({
   isVictory,
   isTie,
   isMultiplayer,
+  isGamba = false,
   myRematchRequested,
   opponentRematchRequested,
   onRematch,
@@ -83,7 +85,7 @@ export default function BattleResult({
 
         {/* Buttons */}
         <div className="flex gap-4">
-          {isMultiplayer ? (
+          {isMultiplayer && !isGamba ? (
             <>
               <Button
                 onClick={onRematch}
@@ -98,6 +100,10 @@ export default function BattleResult({
                 Leave Lobby
               </Button>
             </>
+          ) : isMultiplayer && isGamba ? (
+            <Button onClick={onMainMenu} variant="primary" size="lg">
+              Back to Menu
+            </Button>
           ) : (
             <>
               <Button onClick={onRematch} variant="danger" size="lg">

@@ -219,6 +219,7 @@ export default function FightArena() {
   const [partyState, partyActions] = usePartyKitContext();
 
   const isMultiplayer = gameMode === 'multiplayer';
+  const isGamba = isMultiplayer && partyState.wagerStatus !== 'none';
 
   // Rematch request state for multiplayer
   const myRematchRequested = isMultiplayer && partyState.role
@@ -904,10 +905,11 @@ export default function FightArena() {
           isVictory={isVictory}
           isTie={isTie}
           isMultiplayer={isMultiplayer}
+          isGamba={isGamba}
           myRematchRequested={myRematchRequested}
           opponentRematchRequested={opponentRematchRequested}
-          onRematch={handleRematch} 
-          onMainMenu={handleMainMenu} 
+          onRematch={handleRematch}
+          onMainMenu={handleMainMenu}
         />
       )}
 
