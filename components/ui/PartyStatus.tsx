@@ -21,7 +21,7 @@ export function PartyStatus() {
     : !!partyState.roomState?.hostId;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed bottom-12 right-4 z-50">
       <div
         className={`
           flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium
