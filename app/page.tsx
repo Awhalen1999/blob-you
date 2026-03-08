@@ -81,6 +81,15 @@ export default function Home() {
       .catch(() => {});
   }, [user, discordId]);
 
+  // Re-fetch balance after wager payout or dispute so the displayed balance is current
+  useEffect(() => {
+    if (!discordId || (!partyState.wagerPayout && !partyState.wagerDisputed)) return;
+    fetch(`/api/stackcoin/balance?discord_id=${discordId}`)
+      .then((r) => r.json())
+      .then(({ balance }) => { if (balance !== null) setStkBalance(balance); })
+      .catch(() => {});
+  }, [discordId, partyState.wagerPayout, partyState.wagerDisputed]);
+
   const isDiscordWithStk = !!discordId && stkBalance !== null;
 
   // Sync PartyKit state to game store
