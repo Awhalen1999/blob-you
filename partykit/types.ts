@@ -3,6 +3,9 @@ import type { Stroke } from '@/types/game';
 /** Player role in a room */
 export type PlayerRole = 'host' | 'guest';
 
+/** Wager status state machine */
+export type WagerStatus = 'none' | 'proposed' | 'pending_payment' | 'confirmed' | 'complete';
+
 /** Room state synchronized to all clients */
 export type RoomState = {
   hostId: string | null;
@@ -21,6 +24,9 @@ export type RoomState = {
   hostRematchRequested: boolean;
   guestRematchRequested: boolean;
   phase: 'waiting' | 'drawing' | 'fighting';
+  // Wager
+  wagerStatus: WagerStatus;
+  wagerAmount: number;
 };
 
 // ===========================================
@@ -30,6 +36,7 @@ export type RoomState = {
 export type JoinMessage = {
   type: 'join';
   name: string;
+  discordId?: string;
 };
 
 export type LobbyReadyMessage = {
@@ -49,7 +56,34 @@ export type RematchRequestMessage = {
   type: 'rematch_request';
 };
 
-export type ClientMessage = JoinMessage | LobbyReadyMessage | LobbyUnreadyMessage | ReadyMessage | RematchRequestMessage;
+export type ProposeWagerMessage = {
+  type: 'propose_wager';
+  amount: number;
+};
+
+export type AcceptWagerMessage = {
+  type: 'accept_wager';
+};
+
+export type DeclineWagerMessage = {
+  type: 'decline_wager';
+};
+
+export type ReportWinnerMessage = {
+  type: 'report_winner';
+  winner: 'host' | 'guest' | 'tie';
+};
+
+export type ClientMessage =
+  | JoinMessage
+  | LobbyReadyMessage
+  | LobbyUnreadyMessage
+  | ReadyMessage
+  | RematchRequestMessage
+  | ProposeWagerMessage
+  | AcceptWagerMessage
+  | DeclineWagerMessage
+  | ReportWinnerMessage;
 
 // ===========================================
 // SERVER → CLIENT MESSAGES
@@ -65,6 +99,7 @@ export type PlayerJoinedMessage = {
   type: 'player_joined';
   role: PlayerRole;
   name: string;
+  hasDiscordId: boolean;
 };
 
 export type PlayerLeftMessage = {
@@ -95,7 +130,7 @@ export type BattleStartMessage = {
   type: 'battle_start';
   hostStrokes: Stroke[];
   guestStrokes: Stroke[];
-  seed: number; // Deterministic random seed for identical simulations
+  seed: number;
 };
 
 export type PlayerRematchRequestedMessage = {
@@ -116,6 +151,22 @@ export type ErrorMessage = {
   message: string;
 };
 
+export type WagerStatusMessage = {
+  type: 'wager_status';
+  status: WagerStatus;
+  amount: number;
+};
+
+export type WagerPayoutMessage = {
+  type: 'wager_payout';
+  winner: 'host' | 'guest' | 'tie';
+  amount: number;
+};
+
+export type WagerDisputeMessage = {
+  type: 'wager_dispute';
+};
+
 export type ServerMessage =
   | WelcomeMessage
   | PlayerJoinedMessage
@@ -128,4 +179,7 @@ export type ServerMessage =
   | PlayerRematchRequestedMessage
   | RematchStartMessage
   | RoomFullMessage
-  | ErrorMessage;
+  | ErrorMessage
+  | WagerStatusMessage
+  | WagerPayoutMessage
+  | WagerDisputeMessage;

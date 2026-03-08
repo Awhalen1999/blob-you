@@ -15,7 +15,7 @@ import Button from '@/components/ui/Button';
 import { PartyStatus } from '@/components/ui/PartyStatus';
 import { HowToPlay } from '@/components/ui/HowToPlay';
 
-type MenuView = 'main' | 'lobby' | 'join';
+type MenuView = 'main' | 'gamba' | 'lobby' | 'join';
 
 function generateRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -32,20 +32,15 @@ export default function Home() {
   const [roomCode, setRoomCodeLocal] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [copied, setCopied] = useState(false);
+  const [gambaAmount, setGambaAmount] = useState('');
+  const [pendingWagerAmount, setPendingWagerAmount] = useState(0);
 
-  // Show mobile warning on first load (after user is loaded)
+  // Mobile warning
   useEffect(() => {
-    // Only run after loading is complete and user is authenticated
     if (loading) return;
-    
-    // Check if we've already shown the warning
     const hasShownWarning = sessionStorage.getItem('mobile-warning-shown');
-    
-    // Check if mobile device (screen width <= 768px)
     const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
-    
     if (isMobile && !hasShownWarning) {
-      // Small delay to ensure Toaster is mounted
       const timer = setTimeout(() => {
         toast('Hey! Looks like you\'re on a smaller screen. This app works better on desktop, The arena and canvas are fixed size, so some content may be cut off, but everything works the same.', {
           duration: 10000,
@@ -59,7 +54,6 @@ export default function Home() {
         });
         sessionStorage.setItem('mobile-warning-shown', 'true');
       }, 100);
-      
       return () => clearTimeout(timer);
     }
   }, [loading]);
@@ -67,58 +61,54 @@ export default function Home() {
   const { phase, setPhase, setGameMode, setRoomCode, setIsHost, setOpponent, setOpponentStrokes, setBattleSeed, reset } = useGameStore();
   const [partyState, partyActions] = usePartyKitContext();
 
-  const displayName = user?.displayName || user?.email?.split('@')[0] || 'Player';
+  // Discord + display name
+  const discordId = user?.uid.startsWith('discord:') ? user.uid.split(':')[1] : undefined;
+  const [displayName, setDisplayName] = useState(user?.displayName || user?.email?.split('@')[0] || 'Player');
   const [stkBalance, setStkBalance] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!user?.uid.startsWith('discord:')) return;
-    const discordId = user.uid.split(':')[1];
+    if (!discordId || !user) return;
+    // Get display name from token claims (signInWithCustomToken doesn't set displayName)
+    user.getIdTokenResult().then((result) => {
+      const username = result.claims.username as string | undefined;
+      if (username) setDisplayName(username);
+    }).catch(() => {});
+    // Get STK balance
     fetch(`/api/stackcoin/balance?discord_id=${discordId}`)
       .then((r) => r.json())
       .then(({ balance }) => { if (balance !== null) setStkBalance(balance); })
       .catch(() => {});
-  }, [user]);
+  }, [user, discordId]);
+
+  const isDiscordWithStk = !!discordId && stkBalance !== null;
 
   // Sync PartyKit state to game store
   useEffect(() => {
     if (partyState.roomState?.phase === 'fighting') {
-      // Store opponent strokes and battle seed before transitioning to fighting
       const opponentStrokes = partyState.role === 'host'
         ? partyState.roomState.guestStrokes
         : partyState.roomState.hostStrokes;
-      if (opponentStrokes) {
-        setOpponentStrokes(opponentStrokes);
-      }
-      if (partyState.battleSeed !== null) {
-        setBattleSeed(partyState.battleSeed);
-      }
+      if (opponentStrokes) setOpponentStrokes(opponentStrokes);
+      if (partyState.battleSeed !== null) setBattleSeed(partyState.battleSeed);
       setPhase('fighting');
     } else if (partyState.roomState?.phase === 'drawing' && partyState.roomState.hostId && partyState.roomState.guestId) {
       setPhase('drawing');
     }
   }, [partyState.roomState?.phase, partyState.roomState?.hostId, partyState.roomState?.guestId, partyState.role, partyState.roomState?.hostStrokes, partyState.roomState?.guestStrokes, partyState.battleSeed, setPhase, setOpponentStrokes, setBattleSeed]);
 
-  // Update opponent info when they join
+  // Update opponent info
   useEffect(() => {
     if (!partyState.roomState || !partyState.role) return;
-
     const opponentName = partyState.role === 'host'
       ? partyState.roomState.guestName
       : partyState.roomState.hostName;
-
-    if (opponentName) {
-      setOpponent({ id: 'opponent', username: opponentName, avatar: '' });
-    }
+    if (opponentName) setOpponent({ id: 'opponent', username: opponentName, avatar: '' });
   }, [partyState.roomState, partyState.role, setOpponent]);
 
-  // Handle opponent leaving - anyone leaving = both go to main menu
+  // Handle opponent leaving
   useEffect(() => {
     if (!partyState.opponentLeft) return;
-
-    // Clear flag first to prevent re-triggers
     partyActions.clearOpponentLeft();
-
-    // Anyone leaving = disconnect and go to main menu
     partyActions.disconnect();
     reset();
     setTimeout(() => {
@@ -126,10 +116,26 @@ export default function Home() {
       setRoomCodeLocal('');
       setJoinCode('');
       setCopied(false);
+      setPendingWagerAmount(0);
     }, 0);
   }, [partyState.opponentLeft, partyActions, reset]);
 
-  // Reset menu view when disconnected (handles when YOU leave)
+  // Auto-propose wager when opponent joins a gamba lobby
+  useEffect(() => {
+    if (
+      menuView === 'lobby' &&
+      pendingWagerAmount > 0 &&
+      partyState.role === 'host' &&
+      partyState.roomState?.hostId && partyState.roomState?.guestId &&
+      partyState.opponentHasDiscord &&
+      partyState.wagerStatus === 'none' &&
+      partyState.status === 'connected'
+    ) {
+      partyActions.sendProposeWager(pendingWagerAmount);
+    }
+  }, [menuView, pendingWagerAmount, partyState.role, partyState.roomState?.hostId, partyState.roomState?.guestId, partyState.opponentHasDiscord, partyState.wagerStatus, partyState.status, partyActions]);
+
+  // Reset menu view when disconnected
   useEffect(() => {
     if (partyState.status === 'disconnected' && menuView === 'lobby') {
       setTimeout(() => {
@@ -137,46 +143,25 @@ export default function Home() {
         setRoomCodeLocal('');
         setJoinCode('');
         setCopied(false);
+        setPendingWagerAmount(0);
       }, 0);
     }
   }, [partyState.status, menuView]);
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
+  if (loading) return <LoadingScreen />;
+  if (!user) return <AuthForm />;
+  if (phase === 'drawing') return <><DrawingCanvas /><PartyStatus /></>;
+  if (phase === 'fighting') return <><FightArena /><PartyStatus /></>;
 
-  if (!user) {
-    return <AuthForm />;
-  }
-
-  // Drawing phase
-  if (phase === 'drawing') {
-    return (
-      <>
-        <DrawingCanvas />
-        <PartyStatus />
-      </>
-    );
-  }
-
-  // Fighting phase
-  if (phase === 'fighting') {
-    return (
-      <>
-        <FightArena />
-        <PartyStatus />
-      </>
-    );
-  }
-
-  const handleGenerateCode = () => {
+  const handleGenerateCode = (wagerAmount = 0) => {
     const code = generateRoomCode();
     setRoomCodeLocal(code);
     setRoomCode(code);
     setIsHost(true);
     setGameMode('multiplayer');
     setMenuView('lobby');
-    partyActions.connect(code, displayName);
+    setPendingWagerAmount(wagerAmount);
+    partyActions.connect(code, displayName, discordId);
   };
 
   const handleCopyCode = async () => {
@@ -193,7 +178,7 @@ export default function Home() {
       setIsHost(false);
       setGameMode('multiplayer');
       setMenuView('lobby');
-      partyActions.connect(code, displayName);
+      partyActions.connect(code, displayName, discordId);
     }
   };
 
@@ -210,13 +195,13 @@ export default function Home() {
     setCopied(false);
     setRoomCode(null);
     setIsHost(false);
+    setPendingWagerAmount(0);
   };
 
   const handleToggleReady = () => {
     const myLobbyReady = partyState.role === 'host'
       ? partyState.roomState?.hostLobbyReady
       : partyState.roomState?.guestLobbyReady;
-    
     if (myLobbyReady) {
       partyActions.sendLobbyUnready();
     } else {
@@ -224,7 +209,61 @@ export default function Home() {
     }
   };
 
-  // Lobby View (waiting for opponent or ready to start)
+  // ===== GAMBA VIEW =====
+  if (menuView === 'gamba') {
+    const parsedAmount = parseInt(gambaAmount, 10);
+    const isValidAmount = !isNaN(parsedAmount) && parsedAmount > 0 && parsedAmount <= (stkBalance ?? 0);
+
+    return (
+      <div className="transparent-bg w-full max-w-md mx-auto p-lg rounded-sm border border-white/20">
+        <header className="mb-md text-center">
+          <h1 className="text-xl font-bold text-white">GAMBA</h1>
+          <p className="text-white/50 text-sm mt-1">Set a wager — loser pays the winner</p>
+        </header>
+
+        {stkBalance !== null && (
+          <p className="text-center text-white/60 text-sm mb-md">
+            Your balance: <span className="text-white font-bold">{stkBalance.toLocaleString()} STK</span>
+          </p>
+        )}
+
+        <div className="bg-black/40 border-2 border-white/30 rounded-sm p-md mb-md">
+          <input
+            type="number"
+            value={gambaAmount}
+            onChange={(e) => setGambaAmount(e.target.value)}
+            placeholder="Enter STK amount"
+            min={1}
+            max={stkBalance ?? undefined}
+            className="w-full bg-transparent text-3xl font-bold text-center text-white font-mono placeholder:text-white/20 outline-none"
+            autoFocus
+          />
+          {gambaAmount && !isValidAmount && (
+            <p className="text-red-400 text-xs text-center mt-2">
+              {parsedAmount > (stkBalance ?? 0) ? 'Insufficient balance' : 'Enter a valid amount'}
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <Button
+            onClick={() => handleGenerateCode(parsedAmount)}
+            disabled={!isValidAmount}
+            variant="success"
+            size="lg"
+            fullWidth
+          >
+            Generate Match Code
+          </Button>
+          <Button onClick={() => setMenuView('main')} variant="secondary" size="lg" fullWidth>
+            Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== LOBBY VIEW =====
   if (menuView === 'lobby') {
     const isConnecting = partyState.status === 'connecting';
     const isConnected = partyState.status === 'connected';
@@ -239,20 +278,23 @@ export default function Home() {
       ? partyState.roomState?.guestLobbyReady
       : partyState.roomState?.hostLobbyReady;
 
+    const { wagerStatus, wagerAmount, opponentHasDiscord } = partyState;
+    const isGambaLobby = pendingWagerAmount > 0;
+
+    const wagerBlocked = wagerStatus === 'proposed' || wagerStatus === 'pending_payment';
+
     return (
       <div className="transparent-bg w-full max-w-md mx-auto p-lg rounded-sm border border-white/20">
         <header className="mb-md text-center">
           <h1 className="text-xl font-bold text-white">
-            {hasOpponent ? 'READY TO BATTLE!' : 'WAITING FOR OPPONENT'}
+            {isGambaLobby ? `GAMBA — ${pendingWagerAmount} STK` : hasOpponent ? 'READY TO BATTLE!' : 'WAITING FOR OPPONENT'}
           </h1>
         </header>
 
-        {/* Room code display */}
+        {/* Room code */}
         <div className="bg-black/40 border-2 border-white/30 rounded-sm p-md mb-md relative">
           <p className="text-xs text-center text-white/50 mb-1">ROOM CODE</p>
-          <p className="text-4xl font-bold text-center text-white tracking-[0.3em] font-mono">
-            {roomCode}
-          </p>
+          <p className="text-4xl font-bold text-center text-white tracking-[0.3em] font-mono">{roomCode}</p>
           <button
             onClick={handleCopyCode}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-2 transition-colors"
@@ -275,7 +317,7 @@ export default function Home() {
           {isConnected && !hasOpponent && (
             <p className="text-white/70">Share the code with your friend!</p>
           )}
-          {isConnected && hasOpponent && (
+          {isConnected && hasOpponent && wagerStatus === 'none' && !isGambaLobby && (
             <p className="text-green-400 font-bold">{opponentName} joined!</p>
           )}
         </div>
@@ -287,9 +329,7 @@ export default function Home() {
               YOU {partyState.role && <span className="text-white/30">({partyState.role})</span>}
             </p>
             <p className="text-white font-bold">{displayName}</p>
-            {myLobbyReady && (
-              <p className="text-sm font-bold text-green-400 mt-0.5">READY</p>
-            )}
+            {myLobbyReady && <p className="text-sm font-bold text-green-400 mt-0.5">READY</p>}
           </div>
           <div className="text-center">
             <p className="text-xs text-white/50 mb-1">
@@ -298,9 +338,7 @@ export default function Home() {
             {hasOpponent ? (
               <>
                 <p className="text-white font-bold">{opponentName}</p>
-                {opponentLobbyReady && (
-                  <p className="text-sm font-bold text-green-400 mt-0.5">READY</p>
-                )}
+                {opponentLobbyReady && <p className="text-sm font-bold text-green-400 mt-0.5">READY</p>}
               </>
             ) : (
               <p className="text-white/30">...</p>
@@ -308,15 +346,89 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Wager UI */}
+        {hasOpponent && wagerStatus !== 'none' && (
+          <div className="mb-3">
+            {/* Host: waiting for guest to accept */}
+            {partyState.role === 'host' && wagerStatus === 'proposed' && (
+              <div className="text-center text-white/70 text-sm py-2">
+                <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+                Waiting for opponent to accept {wagerAmount} STK wager...
+              </div>
+            )}
+
+            {/* Guest: accept or decline */}
+            {partyState.role === 'guest' && wagerStatus === 'proposed' && (
+              <div className="flex flex-col gap-2">
+                <p className="text-center text-white font-bold text-sm">
+                  Host wants to wager <span className="text-yellow-400">{wagerAmount} STK</span>
+                </p>
+                {discordId && stkBalance !== null && stkBalance < wagerAmount && (
+                  <p className="text-center text-red-400 text-xs">Insufficient balance ({stkBalance} STK)</p>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={partyActions.sendAcceptWager}
+                    disabled={!discordId || (stkBalance !== null && stkBalance < wagerAmount)}
+                    variant="success"
+                    size="md"
+                    fullWidth
+                  >
+                    Accept Wager
+                  </Button>
+                  <Button
+                    onClick={partyActions.sendDeclineWager}
+                    variant="secondary"
+                    size="md"
+                    fullWidth
+                  >
+                    Decline
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Both: pending payment */}
+            {wagerStatus === 'pending_payment' && (
+              <div className="text-center text-yellow-400 text-sm py-2">
+                <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+                Accept the {wagerAmount} STK request from the StackCoin bot...
+              </div>
+            )}
+
+            {/* Both: confirmed */}
+            {wagerStatus === 'confirmed' && (
+              <div className="text-center text-green-400 font-bold text-sm py-2">
+                ✅ Wager confirmed — {wagerAmount} STK each!
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Gamba lobby: waiting for opponent and no discord */}
+        {isGambaLobby && hasOpponent && !opponentHasDiscord && wagerStatus === 'none' && (
+          <div className="text-center text-red-400 text-sm mb-3">
+            Opponent must be logged in with Discord to play Gamba
+          </div>
+        )}
+
         <div className="flex flex-col gap-3">
           <Button
             onClick={handleToggleReady}
-            disabled={!hasOpponent}
+            disabled={!hasOpponent || wagerBlocked || (isGambaLobby && wagerStatus !== 'confirmed')}
             variant="success"
             size="lg"
             fullWidth
           >
-            {!hasOpponent ? 'Waiting...' : myLobbyReady ? (opponentLobbyReady ? 'Starting...' : 'Unready') : 'Ready!'}
+            {!hasOpponent
+              ? 'Waiting...'
+              : wagerBlocked
+                ? 'Resolve wager first...'
+                : isGambaLobby && wagerStatus !== 'confirmed'
+                  ? 'Waiting for wager...'
+                  : myLobbyReady
+                    ? opponentLobbyReady ? 'Starting...' : 'Unready'
+                    : 'Ready!'}
           </Button>
           <Button onClick={handleBack} variant="secondary" size="lg" fullWidth icon={<LogOut className="w-4 h-4" />}>
             Leave Room
@@ -326,7 +438,7 @@ export default function Home() {
     );
   }
 
-  // Join Room View
+  // ===== JOIN VIEW =====
   if (menuView === 'join') {
     return (
       <div className="transparent-bg w-full max-w-md mx-auto p-lg rounded-sm border border-white/20">
@@ -356,7 +468,7 @@ export default function Home() {
           >
             Join Game
           </Button>
-          <Button onClick={handleBack} variant="secondary" size="lg" fullWidth>
+          <Button onClick={() => setMenuView('main')} variant="secondary" size="lg" fullWidth>
             Back
           </Button>
         </div>
@@ -364,7 +476,7 @@ export default function Home() {
     );
   }
 
-  // Main Menu View
+  // ===== MAIN MENU =====
   return (
     <div className="relative w-full h-full min-h-screen flex items-center justify-center">
       <Button
@@ -392,9 +504,14 @@ export default function Home() {
         </header>
 
         <div className="flex flex-col gap-3">
-          <Button onClick={handleGenerateCode} variant="primary" size="lg" fullWidth>
+          <Button onClick={() => handleGenerateCode()} variant="primary" size="lg" fullWidth>
             Generate Match Code
           </Button>
+          {isDiscordWithStk && (
+            <Button onClick={() => setMenuView('gamba')} variant="primary" size="lg" fullWidth>
+              🎰 Gamba
+            </Button>
+          )}
           <Button onClick={() => setMenuView('join')} variant="primary" size="lg" fullWidth>
             Enter Match Code
           </Button>

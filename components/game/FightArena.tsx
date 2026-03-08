@@ -737,6 +737,21 @@ export default function FightArena() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerHp, opponentHp, battleOver]);
 
+  // Report winner to server for wager payout
+  useEffect(() => {
+    if (!isMultiplayer || !battleOver || partyState.wagerStatus !== 'confirmed' || !partyState.role) return;
+    let winnerRole: 'host' | 'guest' | 'tie';
+    if (isTie) {
+      winnerRole = 'tie';
+    } else if (isVictory) {
+      winnerRole = partyState.role;
+    } else {
+      winnerRole = partyState.role === 'host' ? 'guest' : 'host';
+    }
+    partyActions.sendReportWinner(winnerRole);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [battleOver]);
+
   // Handle server-initiated rematch (both players agreed)
   useEffect(() => {
     if (isMultiplayer && partyState.roomState?.phase === 'drawing' && battleOver) {

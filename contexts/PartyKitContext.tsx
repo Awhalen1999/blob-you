@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useCallback, useState, ReactNode } from 'react';
 import PartySocket from 'partysocket';
 import type { Stroke } from '@/types/game';
-import type { ServerMessage, RoomState, PlayerRole, ClientMessage } from '@/partykit/types';
+import type { ServerMessage, RoomState, PlayerRole, ClientMessage, WagerStatus } from '@/partykit/types';
 
 const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST ?? 'localhost:1999';
 
@@ -16,16 +16,25 @@ export type PartyKitState = {
   error: string | null;
   battleSeed: number | null;
   opponentLeft: PlayerRole | null;
+  opponentHasDiscord: boolean;
+  wagerStatus: WagerStatus;
+  wagerAmount: number;
+  wagerPayout: { winner: 'host' | 'guest' | 'tie'; amount: number } | null;
+  wagerDisputed: boolean;
 };
 
 export type PartyKitActions = {
-  connect: (roomCode: string, playerName: string) => void;
+  connect: (roomCode: string, playerName: string, discordId?: string) => void;
   disconnect: () => void;
   sendLobbyReady: () => void;
   sendLobbyUnready: () => void;
   sendReady: (strokes: Stroke[]) => void;
   sendRematchRequest: () => void;
   clearOpponentLeft: () => void;
+  sendProposeWager: (amount: number) => void;
+  sendAcceptWager: () => void;
+  sendDeclineWager: () => void;
+  sendReportWinner: (winner: 'host' | 'guest' | 'tie') => void;
 };
 
 type PartyKitContextValue = [PartyKitState, PartyKitActions];
@@ -49,6 +58,11 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [battleSeed, setBattleSeed] = useState<number | null>(null);
   const [opponentLeft, setOpponentLeft] = useState<PlayerRole | null>(null);
+  const [opponentHasDiscord, setOpponentHasDiscord] = useState(false);
+  const [wagerStatus, setWagerStatus] = useState<WagerStatus>('none');
+  const [wagerAmount, setWagerAmount] = useState(0);
+  const [wagerPayout, setWagerPayout] = useState<{ winner: 'host' | 'guest' | 'tie'; amount: number } | null>(null);
+  const [wagerDisputed, setWagerDisputed] = useState(false);
 
   const send = useCallback((message: ClientMessage): boolean => {
     const socket = socketRef.current;
@@ -56,7 +70,7 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
       log('send', 'dropped_not_connected', { type: message.type });
       return false;
     }
-      log('send', message.type);
+    log('send', message.type);
     socket.send(JSON.stringify(message));
     return true;
   }, []);
@@ -75,10 +89,13 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
       case 'welcome':
         setRole(msg.role);
         setRoomState(msg.roomState);
+        setWagerStatus(msg.roomState.wagerStatus);
+        setWagerAmount(msg.roomState.wagerAmount);
         setStatus('connected');
         break;
 
       case 'player_joined':
+        setOpponentHasDiscord(msg.hasDiscordId);
         setRoomState((prev) => {
           if (!prev) return prev;
           return msg.role === 'host'
@@ -89,11 +106,16 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
 
       case 'player_left':
         setOpponentLeft(msg.role);
+        setOpponentHasDiscord(false);
+        setWagerStatus('none');
+        setWagerAmount(0);
+        setWagerPayout(null);
+        setWagerDisputed(false);
         setRoomState((prev) => {
           if (!prev) return prev;
           return msg.role === 'host'
-            ? { ...prev, hostId: null, hostName: null, hostReady: false, hostStrokes: null, phase: 'waiting' }
-            : { ...prev, guestId: null, guestName: null, guestReady: false, guestStrokes: null, phase: 'waiting' };
+            ? { ...prev, hostId: null, hostName: null, hostReady: false, hostStrokes: null, phase: 'waiting', wagerStatus: 'none', wagerAmount: 0 }
+            : { ...prev, guestId: null, guestName: null, guestReady: false, guestStrokes: null, phase: 'waiting', wagerStatus: 'none', wagerAmount: 0 };
         });
         break;
 
@@ -153,6 +175,10 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
 
       case 'rematch_start':
         setBattleSeed(null);
+        setWagerStatus('none');
+        setWagerAmount(0);
+        setWagerPayout(null);
+        setWagerDisputed(false);
         setRoomState((prev) =>
           prev
             ? {
@@ -164,6 +190,8 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
                 guestStrokes: null,
                 hostRematchRequested: false,
                 guestRematchRequested: false,
+                wagerStatus: 'none',
+                wagerAmount: 0,
               }
             : prev
         );
@@ -178,12 +206,26 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
         setError(msg.message);
         setStatus('error');
         break;
+
+      case 'wager_status':
+        setWagerStatus(msg.status);
+        setWagerAmount(msg.amount);
+        setRoomState((prev) => prev ? { ...prev, wagerStatus: msg.status, wagerAmount: msg.amount } : prev);
+        break;
+
+      case 'wager_payout':
+        setWagerStatus('complete');
+        setWagerPayout({ winner: msg.winner, amount: msg.amount });
+        break;
+
+      case 'wager_dispute':
+        setWagerDisputed(true);
+        break;
     }
   }, []);
 
   const connect = useCallback(
-    (roomCode: string, playerName: string) => {
-      // Clean up existing connection first
+    (roomCode: string, playerName: string, discordId?: string) => {
       if (socketRef.current) {
         socketRef.current.close();
         socketRef.current = null;
@@ -193,23 +235,24 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
       setStatus('connecting');
       setError(null);
       setOpponentLeft(null);
+      setOpponentHasDiscord(false);
+      setWagerStatus('none');
+      setWagerAmount(0);
+      setWagerPayout(null);
+      setWagerDisputed(false);
 
       const socket = new PartySocket({
         host: PARTYKIT_HOST,
         room: roomCode,
       });
 
-      // CRITICAL: Assign socket to ref BEFORE adding event listeners
-      // This ensures send() works in the open handler
       socketRef.current = socket;
 
       socket.addEventListener('open', () => {
         log('recv', 'connected');
-        // Send join message directly on this socket instance
-        // to avoid any ref timing issues
         if (socket.readyState === WebSocket.OPEN) {
           log('send', 'join');
-          socket.send(JSON.stringify({ type: 'join', name: playerName }));
+          socket.send(JSON.stringify({ type: 'join', name: playerName, discordId }));
         }
       });
 
@@ -217,20 +260,18 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
 
       socket.addEventListener('close', () => {
         log('recv', 'disconnected');
-        // Only update state if this is still the active socket
         if (socketRef.current === socket) {
-        setStatus('disconnected');
-        setRole(null);
-        setRoomState(null);
+          setStatus('disconnected');
+          setRole(null);
+          setRoomState(null);
         }
       });
 
       socket.addEventListener('error', () => {
         log('recv', 'error');
-        // Only update state if this is still the active socket
         if (socketRef.current === socket) {
-        setError('Connection failed');
-        setStatus('error');
+          setError('Connection failed');
+          setStatus('error');
         }
       });
     },
@@ -249,6 +290,11 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
     setError(null);
     setBattleSeed(null);
     setOpponentLeft(null);
+    setOpponentHasDiscord(false);
+    setWagerStatus('none');
+    setWagerAmount(0);
+    setWagerPayout(null);
+    setWagerDisputed(false);
   }, []);
 
   const clearOpponentLeft = useCallback(() => {
@@ -256,11 +302,9 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sendLobbyReady = useCallback(() => {
-    // Guard: must have role and be connected
     if (!role) return;
     const sent = send({ type: 'lobby_ready' });
     if (!sent) return;
-    // Update own state immediately since server doesn't echo back to sender
     setRoomState((prev) => {
       if (!prev) return prev;
       return role === 'host'
@@ -270,11 +314,9 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
   }, [send, role]);
 
   const sendLobbyUnready = useCallback(() => {
-    // Guard: must have role and be connected
     if (!role) return;
     const sent = send({ type: 'lobby_unready' });
     if (!sent) return;
-    // Update own state immediately since server doesn't echo back to sender
     setRoomState((prev) => {
       if (!prev) return prev;
       return role === 'host'
@@ -285,18 +327,15 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
 
   const sendReady = useCallback(
     (strokes: Stroke[]) => {
-      // Guard: must be connected
       send({ type: 'ready', strokes });
     },
     [send]
   );
 
   const sendRematchRequest = useCallback(() => {
-    // Guard: must have role and be connected
     if (!role) return;
     const sent = send({ type: 'rematch_request' });
     if (!sent) return;
-    // Optimistic update - immediately reflect our rematch request
     setRoomState((prev) => {
       if (!prev) return prev;
       return role === 'host'
@@ -304,6 +343,27 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
         : { ...prev, guestRematchRequested: true };
     });
   }, [send, role]);
+
+  const sendProposeWager = useCallback((amount: number) => {
+    send({ type: 'propose_wager', amount });
+  }, [send]);
+
+  const sendAcceptWager = useCallback(() => {
+    send({ type: 'accept_wager' });
+    // Optimistic update
+    setWagerStatus('pending_payment');
+  }, [send]);
+
+  const sendDeclineWager = useCallback(() => {
+    send({ type: 'decline_wager' });
+    // Optimistic update
+    setWagerStatus('none');
+    setWagerAmount(0);
+  }, [send]);
+
+  const sendReportWinner = useCallback((winner: 'host' | 'guest' | 'tie') => {
+    send({ type: 'report_winner', winner });
+  }, [send]);
 
   useEffect(() => {
     return () => {
@@ -313,8 +373,15 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const state: PartyKitState = { status, role, roomState, error, battleSeed, opponentLeft };
-  const actions: PartyKitActions = { connect, disconnect, sendLobbyReady, sendLobbyUnready, sendReady, sendRematchRequest, clearOpponentLeft };
+  const state: PartyKitState = {
+    status, role, roomState, error, battleSeed, opponentLeft,
+    opponentHasDiscord, wagerStatus, wagerAmount, wagerPayout, wagerDisputed,
+  };
+  const actions: PartyKitActions = {
+    connect, disconnect, sendLobbyReady, sendLobbyUnready, sendReady,
+    sendRematchRequest, clearOpponentLeft,
+    sendProposeWager, sendAcceptWager, sendDeclineWager, sendReportWinner,
+  };
 
   return (
     <PartyKitContext.Provider value={[state, actions]}>
