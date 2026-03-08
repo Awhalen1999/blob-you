@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { LogOut, Loader2, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -490,8 +491,8 @@ export default function Home() {
       </Button>
 
       {stkBalance !== null && (
-        <div className="absolute bottom-4 left-4 z-10 transparent-bg border border-white/20 rounded-sm px-3 py-2 text-sm font-medium text-white flex items-center gap-2">
-          <span>🪙</span>
+        <div className="absolute bottom-4 left-4 z-10 flex items-center gap-1.5 text-sm font-medium text-white">
+          <Image src="/stack-coin.png" alt="STK" width={20} height={20} />
           <span>{stkBalance.toLocaleString()} STK</span>
         </div>
       )}
@@ -508,8 +509,8 @@ export default function Home() {
             Generate Match Code
           </Button>
           {isDiscordWithStk && (
-            <Button onClick={() => setMenuView('gamba')} variant="primary" size="lg" fullWidth>
-              🎰 Gamba
+            <Button onClick={() => setMenuView('gamba')} variant="primary" size="lg" fullWidth icon={<Image src="/stack-coin.png" alt="STK" width={18} height={18} />}>
+              Gamba
             </Button>
           )}
           <Button onClick={() => setMenuView('join')} variant="primary" size="lg" fullWidth>
