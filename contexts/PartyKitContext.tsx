@@ -17,8 +17,10 @@ export type PartyKitState = {
   battleSeed: number | null;
   opponentLeft: PlayerRole | null;
   opponentHasDiscord: boolean;
+  // Wager state: derived from roomState (single source of truth)
   wagerStatus: WagerStatus;
   wagerAmount: number;
+  // Outcome flags: set once when wager resolves, cleared on reset
   wagerPayout: { winner: 'host' | 'guest' | 'tie'; amount: number } | null;
   wagerDisputed: boolean;
 };
@@ -59,10 +61,13 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
   const [battleSeed, setBattleSeed] = useState<number | null>(null);
   const [opponentLeft, setOpponentLeft] = useState<PlayerRole | null>(null);
   const [opponentHasDiscord, setOpponentHasDiscord] = useState(false);
-  const [wagerStatus, setWagerStatus] = useState<WagerStatus>('none');
-  const [wagerAmount, setWagerAmount] = useState(0);
+  // Outcome flags — only these two are standalone (they don't exist in RoomState)
   const [wagerPayout, setWagerPayout] = useState<{ winner: 'host' | 'guest' | 'tie'; amount: number } | null>(null);
   const [wagerDisputed, setWagerDisputed] = useState(false);
+
+  // Derive wager status/amount from roomState (single source of truth)
+  const wagerStatus: WagerStatus = roomState?.wagerStatus ?? 'none';
+  const wagerAmount: number = roomState?.wagerAmount ?? 0;
 
   const send = useCallback((message: ClientMessage): boolean => {
     const socket = socketRef.current;
@@ -89,8 +94,6 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
       case 'welcome':
         setRole(msg.role);
         setRoomState(msg.roomState);
-        setWagerStatus(msg.roomState.wagerStatus);
-        setWagerAmount(msg.roomState.wagerAmount);
         setStatus('connected');
         break;
 
@@ -107,8 +110,6 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
       case 'player_left':
         setOpponentLeft(msg.role);
         setOpponentHasDiscord(false);
-        setWagerStatus('none');
-        setWagerAmount(0);
         setWagerPayout(null);
         setWagerDisputed(false);
         setRoomState((prev) => {
@@ -175,8 +176,6 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
 
       case 'rematch_start':
         setBattleSeed(null);
-        setWagerStatus('none');
-        setWagerAmount(0);
         setWagerPayout(null);
         setWagerDisputed(false);
         setRoomState((prev) =>
@@ -207,21 +206,20 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
         setStatus('error');
         break;
 
+      // Wager state flows through roomState (single source of truth)
       case 'wager_status':
-        setWagerStatus(msg.status);
-        setWagerAmount(msg.amount);
         setRoomState((prev) => prev ? { ...prev, wagerStatus: msg.status, wagerAmount: msg.amount } : prev);
         break;
 
+      // Happy path: payout succeeded
       case 'wager_payout':
-        setWagerStatus('complete');
+        setRoomState((prev) => prev ? { ...prev, wagerStatus: 'complete' } : prev);
         setWagerPayout({ winner: msg.winner, amount: msg.amount });
         break;
 
+      // Sad path: dispute → server will also send wager_status 'none' via resetWager
       case 'wager_dispute':
         setWagerDisputed(true);
-        setWagerStatus('none');
-        setWagerAmount(0);
         break;
     }
   }, []);
@@ -238,8 +236,6 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
       setError(null);
       setOpponentLeft(null);
       setOpponentHasDiscord(false);
-      setWagerStatus('none');
-      setWagerAmount(0);
       setWagerPayout(null);
       setWagerDisputed(false);
 
@@ -293,8 +289,6 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
     setBattleSeed(null);
     setOpponentLeft(null);
     setOpponentHasDiscord(false);
-    setWagerStatus('none');
-    setWagerAmount(0);
     setWagerPayout(null);
     setWagerDisputed(false);
   }, []);
@@ -352,15 +346,10 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
 
   const sendAcceptWager = useCallback(() => {
     send({ type: 'accept_wager' });
-    // Optimistic update
-    setWagerStatus('pending_payment');
   }, [send]);
 
   const sendDeclineWager = useCallback(() => {
     send({ type: 'decline_wager' });
-    // Optimistic update
-    setWagerStatus('none');
-    setWagerAmount(0);
   }, [send]);
 
   const sendReportWinner = useCallback((winner: 'host' | 'guest' | 'tie') => {

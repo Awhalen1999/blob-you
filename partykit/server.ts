@@ -145,11 +145,8 @@ export default class BlobRoom implements Party.Server {
 
     this.broadcast({ type: 'player_left', role });
 
-    this.stopPolling();
-
-    // If wager is in any active state (not complete), check who already paid and refund them.
-    // This covers: disconnect during pending_payment, mid-battle quit, partial winner report.
-    // Must await so the refund fetch runs before we wipe state (discord IDs, request IDs, amount).
+    // Sad path: if wager is active (not settled), refund whoever paid and reset.
+    // Must await so the refund API call completes before we wipe state.
     if (this.state.wagerStatus !== 'none' && this.state.wagerStatus !== 'complete') {
       await this.issueRefundAndReset();
     }
@@ -157,10 +154,7 @@ export default class BlobRoom implements Party.Server {
     this.state = createInitialState();
     this.hostDiscordId = null;
     this.guestDiscordId = null;
-    this.hostWagerRequestId = null;
-    this.guestWagerRequestId = null;
-    this.hostReportedWinner = null;
-    this.guestReportedWinner = null;
+    this.resetWager(false);
     this.log('room_closed', { reason: `${role}_left` });
   }
 
@@ -308,10 +302,6 @@ export default class BlobRoom implements Party.Server {
     this.broadcast({ type: 'player_rematch_requested', role }, conn.id);
 
     if (this.state.hostRematchRequested && this.state.guestRematchRequested) {
-      const hDiscord = this.hostDiscordId;
-      const gDiscord = this.guestDiscordId;
-
-      this.stopPolling();
       this.state = {
         ...createInitialState(),
         hostId: this.state.hostId,
@@ -319,12 +309,8 @@ export default class BlobRoom implements Party.Server {
         hostName: this.state.hostName,
         guestName: this.state.guestName,
       };
-      this.hostDiscordId = hDiscord;
-      this.guestDiscordId = gDiscord;
-      this.hostWagerRequestId = null;
-      this.guestWagerRequestId = null;
-      this.hostReportedWinner = null;
-      this.guestReportedWinner = null;
+      // Reset wager state without broadcasting (rematch_start handles client reset)
+      this.resetWager(false);
 
       this.log('rematch_start');
       this.broadcastAll({ type: 'rematch_start' });
@@ -372,10 +358,8 @@ export default class BlobRoom implements Party.Server {
     if (role !== 'guest') return;
     if (this.state.wagerStatus !== 'proposed') return;
 
-    this.state.wagerStatus = 'none';
-    this.state.wagerAmount = 0;
     this.log('wager_declined');
-    this.broadcastAll({ type: 'wager_status', status: 'none', amount: 0 });
+    this.resetWager();
   }
 
   private async initiateWager() {
@@ -578,7 +562,9 @@ export default class BlobRoom implements Party.Server {
     }
   }
 
-  private resetWager() {
+  /** Single source of truth for wager cleanup. Clears all wager state.
+   *  Pass broadcast=false when the room is closing (no clients to notify). */
+  private resetWager(broadcast = true) {
     this.stopPolling();
     this.state.wagerStatus = 'none';
     this.state.wagerAmount = 0;
@@ -586,7 +572,9 @@ export default class BlobRoom implements Party.Server {
     this.guestWagerRequestId = null;
     this.hostReportedWinner = null;
     this.guestReportedWinner = null;
-    this.broadcastAll({ type: 'wager_status', status: 'none', amount: 0 });
+    if (broadcast) {
+      this.broadcastAll({ type: 'wager_status', status: 'none', amount: 0 });
+    }
     this.log('wager_reset');
   }
 }

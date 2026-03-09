@@ -28,37 +28,81 @@ STACKCOIN_BOT_TOKEN=<bot token>
 | `POST /api/stackcoin/wager/payout` | Pay winner `amount * 2` (or refund each on tie) |
 | `POST /api/stackcoin/wager/refund` | Partial refund — only refunds players who already paid |
 
-## Wager Flow
+## Two Outcomes
+
+Every wager resolves to exactly one of two outcomes. There is no third path.
+
+### Happy Path: Payout
+
+Both players pay in, battle completes, both clients agree on a winner, payout API returns 200.
 
 ```
-Host proposes amount → Guest accepts
-       ↓
-Bot DMs both players for payment (label: "accept within 5 min")
-       ↓
-Server polls every 5s until both accept → status: confirmed
-       ↓
-Battle runs → both clients report winner
-       ↓
-Agreement → payout winner       Dispute → refund both
+propose → accept → both pay DM → battle → clients agree → payout 200 → complete
 ```
 
-## Safety / Edge Cases
+The winner receives `amount * 2`. On tie, each player gets `amount` back. `wagerStatus` becomes `complete` **only** after a confirmed 200 from the payout API. This is the single gate that marks coins as settled.
 
-| Scenario | Handled? | How |
-|---|---|---|
-| Player leaves during `pending_payment` | ✅ | `onClose` awaits `issueRefundAndReset()` — checks who paid, refunds only them |
-| Player leaves mid-battle (`confirmed`) | ✅ | Same `onClose` guard — refunds both |
-| Nobody accepts DM for 5 min | ✅ | Poll timeout (60 polls × 5s) → `issueRefundAndReset()` |
-| Payout API fails (non-200 or throws) | ✅ | `issueRefundAndReset()` called — refunds both |
-| Dispute (clients report different winners) | ✅ | Broadcast `wager_dispute` → `issueRefundAndReset()` |
-| Player leaves after payout succeeds | ✅ | `wagerStatus = 'complete'` — `onClose` skips refund correctly |
-| Client reports winner after opponent left | ✅ | `opponentLeft` guard on `sendReportWinner` prevents stale report |
-| Wager create API fails (user not on STK) | ✅ | `resetWager()` — no coins moved yet |
-| Guest declines wager | ✅ | `resetWager()` — no coins moved |
-| Tie outcome | ✅ | `payoutWager('tie')` sends `amount` back to each player |
+### Sad Path: Refund
 
-## Core Rule
+Anything else. Any failure after coins are taken triggers a refund to whoever already paid.
 
-> If anything goes wrong after coins are taken — disconnect, timeout, payout failure, dispute — refund whoever already paid. `wagerStatus = 'complete'` is only set after a confirmed 200 payout response.
+```
+[any failure] → refund whoever paid → reset
+```
 
-All paths route through `issueRefundAndReset()` in `partykit/server.ts`.
+Failures that trigger refund:
+- Player disconnects (any phase after proposal)
+- DM payment timeout (5 min)
+- Payout API returns non-200 or throws
+- Clients report different winners (dispute)
+
+Failures before coins move (no refund needed, just reset):
+- Guest declines proposal
+- Wager create API fails (user not on STK)
+
+### The Rule
+
+> Once `wagerStatus` leaves `none`, it either reaches `complete` (payout succeeded) or gets refunded and reset back to `none`. No wager is ever left in a dangling state.
+
+## State Machine
+
+```
+none → proposed → pending_payment → confirmed → complete
+                                                   ↑
+                                            (payout 200 only)
+```
+
+Every state except `complete` can transition back to `none` via refund+reset.
+
+`complete` is terminal — coins are settled, no refund runs.
+
+## Server Architecture
+
+All wager logic lives in `partykit/server.ts`. The server owns:
+
+- **Wager state** (`wagerStatus`, `wagerAmount`) — synced to clients via `RoomState`
+- **Private escrow state** (discord IDs, request IDs, reported winners) — server only
+- **Two resolution functions:**
+  - `payoutWager(winner)` — happy path. Calls payout API. On 200: set `complete`. On failure: fall through to refund.
+  - `issueRefundAndReset()` — sad path. Checks who paid, refunds them, resets all wager state.
+- **One cleanup function:**
+  - `resetWager()` — clears all wager state (status, amount, request IDs, reported winners). Used by both resolution functions and by pre-payment failures.
+
+### `onClose` guard
+
+```
+if wagerStatus is active (not 'none', not 'complete'):
+  await issueRefundAndReset()
+```
+
+This single guard covers every disconnect scenario. The `await` ensures the refund API call completes before the room state is wiped.
+
+## Client Architecture
+
+The client (`PartyKitContext`) holds wager state derived from server messages:
+
+- `wagerStatus` / `wagerAmount` — set from `wager_status` messages
+- `wagerPayout` — set from `wager_payout` message (happy path)
+- `wagerDisputed` — set from `wager_dispute` message (sad path, dispute variant)
+
+The client never decides outcomes. It sends `report_winner` after battle, and the server decides whether to pay out or refund based on agreement.
