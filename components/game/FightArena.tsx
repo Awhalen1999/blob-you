@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import Matter from 'matter-js';
 import { ArrowLeft, Info } from 'lucide-react';
 import Image from 'next/image';
+import posthog from 'posthog-js';
 import { useGameStore } from '@/store/gameStore';
 import { usePartyKitContext } from '@/contexts/PartyKitContext';
 import { ARENA, PHYSICS, POWERUP, POWERUP_BORDER_COLORS, POWERUP_COLORS, POWERUP_ICONS, POWERUP_LABELS, STATS } from '@/lib/constants';
@@ -493,6 +494,11 @@ export default function FightArena() {
         ? (opponent?.username || 'Opponent')
         : (npc?.name || 'Opponent');
       setOpponentName(displayName);
+
+      posthog.capture('battle_started', {
+        mode: isMultiplayer ? (partyState.wagerStatus !== 'none' ? 'gamba' : 'multiplayer') : 'offline',
+        wager_amount: partyState.wagerAmount || 0,
+      });
     });
 
     // Collision handler
@@ -700,8 +706,10 @@ export default function FightArena() {
   useEffect(() => {
     if (battleOver) return;
 
+    const modeLabel = isMultiplayer ? (isGamba ? 'gamba' : 'multiplayer') : 'offline';
+    const wager = partyState.wagerAmount || 0;
+
     if (playerHp <= 0 && opponentHp <= 0) {
-      // Simultaneous kill — tie
       if (engineRef.current && playerBodyRef.current) {
         Matter.Composite.remove(engineRef.current.world, playerBodyRef.current);
       }
@@ -713,6 +721,7 @@ export default function FightArena() {
         setIsVictory(false);
         setIsTie(true);
         setWinner('tie');
+        posthog.capture('battle_ended', { result: 'tie', mode: modeLabel, wager_amount: wager });
       });
     } else if (playerHp <= 0) {
       if (engineRef.current && playerBodyRef.current) {
@@ -723,6 +732,7 @@ export default function FightArena() {
         setIsVictory(false);
         setWinner('opponent');
         addOpponentWin();
+        posthog.capture('battle_ended', { result: 'defeat', mode: modeLabel, wager_amount: wager });
       });
     } else if (opponentHp <= 0) {
       if (engineRef.current && opponentBodyRef.current) {
@@ -733,6 +743,7 @@ export default function FightArena() {
         setIsVictory(true);
         setWinner('me');
         addPlayerWin();
+        posthog.capture('battle_ended', { result: 'victory', mode: modeLabel, wager_amount: wager });
       });
     }
     // setWinner is a Zustand setter (stable)
@@ -753,6 +764,19 @@ export default function FightArena() {
     partyActions.sendReportWinner(winnerRole);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [battleOver]);
+
+  // Track wager settlement
+  useEffect(() => {
+    if (!partyState.wagerPayout) return;
+    const { winner, amount } = partyState.wagerPayout;
+    const result = winner === 'tie' ? 'tie' : winner === partyState.role ? 'won' : 'lost';
+    posthog.capture('wager_settled', { result, amount });
+  }, [partyState.wagerPayout, partyState.role]);
+
+  useEffect(() => {
+    if (!partyState.wagerDisputed) return;
+    posthog.capture('wager_settled', { result: 'disputed', amount: partyState.wagerAmount });
+  }, [partyState.wagerDisputed, partyState.wagerAmount]);
 
   // Handle server-initiated rematch (both players agreed)
   useEffect(() => {
@@ -778,8 +802,8 @@ export default function FightArena() {
   }, [isMultiplayer, partyState.roomState?.phase, battleOver, cleanup]);
 
   const handleRematch = () => {
+    posthog.capture('rematch_requested');
     if (isMultiplayer) {
-      // Online mode - send rematch request
       partyActions.sendRematchRequest();
     } else {
       // Offline mode - instant rematch

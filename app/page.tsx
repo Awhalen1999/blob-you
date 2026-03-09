@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { auth } from "@/lib/firebase";
 import AuthForm from "@/components/auth/AuthForm";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
+import posthog from "posthog-js";
 import { useGameStore } from "@/store/gameStore";
 import { usePartyKitContext } from "@/contexts/PartyKitContext";
 import DrawingCanvas from "@/components/game/DrawingCanvas";
@@ -99,7 +100,10 @@ export default function Home() {
     fetch(`/api/stackcoin/balance?discord_id=${discordId}`)
       .then((r) => r.json())
       .then(({ balance }) => {
-        if (balance !== null) setStkBalance(balance);
+        if (balance !== null) {
+          setStkBalance(balance);
+          posthog.people.set({ has_stk_balance: balance > 0 });
+        }
       })
       .catch(() => {});
   }, [user, discordId]);
@@ -162,6 +166,7 @@ export default function Home() {
   // Handle opponent leaving
   useEffect(() => {
     if (!partyState.opponentLeft) return;
+    posthog.capture("opponent_left", { phase });
     partyActions.clearOpponentLeft();
     partyActions.disconnect();
     reset();
@@ -172,7 +177,7 @@ export default function Home() {
       setCopied(false);
       setPendingWagerAmount(0);
     }, 0);
-  }, [partyState.opponentLeft, partyActions, reset]);
+  }, [partyState.opponentLeft, partyActions, reset, phase]);
 
   // Auto-propose wager when opponent joins a gamba lobby
   useEffect(() => {
@@ -187,6 +192,7 @@ export default function Home() {
       partyState.status === "connected"
     ) {
       partyActions.sendProposeWager(pendingWagerAmount);
+      posthog.capture("wager_proposed", { amount: pendingWagerAmount });
     }
   }, [
     menuView,
@@ -199,6 +205,13 @@ export default function Home() {
     partyState.status,
     partyActions,
   ]);
+
+  // Track wager confirmation
+  useEffect(() => {
+    if (partyState.wagerStatus === "confirmed" && partyState.wagerAmount > 0) {
+      posthog.capture("wager_confirmed", { amount: partyState.wagerAmount });
+    }
+  }, [partyState.wagerStatus, partyState.wagerAmount]);
 
   // Reset menu view when disconnected
   useEffect(() => {
@@ -239,6 +252,10 @@ export default function Home() {
     setMenuView("lobby");
     setPendingWagerAmount(wagerAmount);
     partyActions.connect(code, displayName, discordId);
+
+    const mode = wagerAmount > 0 ? "gamba" : "multiplayer";
+    posthog.capture("game_started", { mode, is_host: true, wager_amount: wagerAmount });
+    posthog.capture("room_created", { room_code: code });
   };
 
   const handleCopyCode = async () => {
@@ -256,12 +273,16 @@ export default function Home() {
       setGameMode("multiplayer");
       setMenuView("lobby");
       partyActions.connect(code, displayName, discordId);
+
+      posthog.capture("game_started", { mode: "multiplayer", is_host: false });
+      posthog.capture("room_joined", { room_code: code });
     }
   };
 
   const handleFightNPC = () => {
     setGameMode("npc");
     setPhase("drawing");
+    posthog.capture("game_started", { mode: "offline" });
   };
 
   const handleBack = () => {
@@ -284,6 +305,7 @@ export default function Home() {
       partyActions.sendLobbyUnready();
     } else {
       partyActions.sendLobbyReady();
+      posthog.capture("player_readied", { mode: pendingWagerAmount > 0 ? "gamba" : "multiplayer" });
     }
   };
 
@@ -548,7 +570,10 @@ export default function Home() {
                   )}
                 <div className="flex gap-2">
                   <Button
-                    onClick={partyActions.sendAcceptWager}
+                    onClick={() => {
+                      posthog.capture("wager_accepted", { amount: wagerAmount });
+                      partyActions.sendAcceptWager();
+                    }}
                     disabled={
                       !discordId ||
                       (stkBalance !== null && stkBalance < wagerAmount)
@@ -560,7 +585,10 @@ export default function Home() {
                     Accept Wager
                   </Button>
                   <Button
-                    onClick={handleBack}
+                    onClick={() => {
+                      posthog.capture("wager_declined", { amount: wagerAmount });
+                      handleBack();
+                    }}
                     variant="secondary"
                     size="md"
                     fullWidth
@@ -692,7 +720,10 @@ export default function Home() {
   return (
     <div className="relative w-full h-full min-h-screen flex items-center justify-center">
       <Button
-        onClick={() => auth.signOut()}
+        onClick={() => {
+          posthog.capture("user_signed_out");
+          auth.signOut();
+        }}
         variant="secondary"
         size="md"
         icon={<LogOut className="w-4 h-4" />}

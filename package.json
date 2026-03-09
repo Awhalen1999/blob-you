@@ -18,6 +18,8 @@
     "next": "16.1.2",
     "partykit": "^0.0.115",
     "partysocket": "^1.1.10",
+    "posthog-js": "^1.360.0",
+    "posthog-node": "^5.28.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "sonner": "^2.0.7",

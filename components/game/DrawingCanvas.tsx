@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import { ArrowLeft, Check, Loader2, RotateCcw } from "lucide-react";
+import posthog from "posthog-js";
 import { useGameStore } from "@/store/gameStore";
 import { usePartyKitContext } from "@/contexts/PartyKitContext";
 import { getMousePos, getTouchPos, clearCanvas } from "@/lib/drawing/canvas";
@@ -258,6 +259,8 @@ export default function DrawingCanvas() {
   const handleReady = () => {
     if (isReady || !hasMinimumInk) return;
     setIsReady(true);
+
+    posthog.capture("drawing_submitted", { stroke_count: myStrokes.length });
 
     if (gameMode === "npc") {
       setPhase("fighting");

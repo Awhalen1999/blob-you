@@ -1,10 +1,16 @@
 import type * as Party from 'partykit/server';
+import { PostHog } from 'posthog-node';
 import type { Stroke } from '@/types/game';
 import type { ClientMessage, ServerMessage, RoomState, PlayerRole } from './types';
 
 const NEXTJS_URL = process.env.NEXTJS_URL ?? 'http://localhost:3000';
 const POLL_INTERVAL_MS = 5000;
 const MAX_POLL_COUNT = 60; // 5 minutes
+
+const posthog = new PostHog(
+  process.env.POSTHOG_API_KEY ?? process.env.NEXT_PUBLIC_POSTHOG_KEY ?? '',
+  { host: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com' }
+);
 
 /** Validate stroke data to prevent crashes from malformed input */
 function isValidStroke(stroke: unknown): stroke is Stroke {
@@ -136,6 +142,11 @@ export default class BlobRoom implements Party.Server {
       if (this.state.wagerStatus === 'confirmed') {
         this.reportTimeout = setTimeout(() => {
           this.log('report_timeout');
+          posthog.capture({
+            distinctId: this.room.id,
+            event: 'report_timeout',
+            properties: { amount: this.state.wagerAmount },
+          });
           void this.issueRefundAndReset();
         }, 180_000);
       }
@@ -401,6 +412,12 @@ export default class BlobRoom implements Party.Server {
       this.guestWagerRequestId = data.guestRequestId;
       this.log('wager_requests_created', { hostReqId: data.hostRequestId, guestReqId: data.guestRequestId });
 
+      posthog.capture({
+        distinctId: this.room.id,
+        event: 'wager_created',
+        properties: { amount: this.state.wagerAmount, host_discord_id: this.hostDiscordId, guest_discord_id: this.guestDiscordId },
+      });
+
       this.startPolling();
     } catch (err) {
       this.log('wager_create_error', { err: String(err) });
@@ -457,6 +474,12 @@ export default class BlobRoom implements Party.Server {
         this.state.wagerStatus = 'confirmed';
         this.log('wager_confirmed');
         this.broadcastAll({ type: 'wager_status', status: 'confirmed', amount: this.state.wagerAmount });
+
+        posthog.capture({
+          distinctId: this.room.id,
+          event: 'wager_payment_confirmed',
+          properties: { amount: this.state.wagerAmount },
+        });
       }
     } catch (err) {
       this.log('wager_poll_error', { err: String(err) });
@@ -504,6 +527,12 @@ export default class BlobRoom implements Party.Server {
           }),
         });
         this.log('refund_issued', { hostPaid, guestPaid });
+
+        posthog.capture({
+          distinctId: this.room.id,
+          event: 'wager_refund_issued',
+          properties: { reason: 'disconnect', host_paid: hostPaid, guest_paid: guestPaid, amount: this.state.wagerAmount },
+        });
       } catch (err) {
         this.log('refund_error', { err: String(err) });
       }
@@ -542,6 +571,13 @@ export default class BlobRoom implements Party.Server {
       // Dispute — refund both via issueRefundAndReset (both confirmed paid at this point)
       this.log('wager_dispute', { hostReport: this.hostReportedWinner, guestReport: this.guestReportedWinner });
       this.broadcastAll({ type: 'wager_dispute' });
+
+      posthog.capture({
+        distinctId: this.room.id,
+        event: 'wager_dispute',
+        properties: { host_report: this.hostReportedWinner, guest_report: this.guestReportedWinner, amount: this.state.wagerAmount },
+      });
+
       void this.issueRefundAndReset();
     }
   }
@@ -571,10 +607,15 @@ export default class BlobRoom implements Party.Server {
         this.log('wager_payout_failed', { status: res.status, body: text });
         void this.issueRefundAndReset();
       } else {
-        // Happy path: mark complete only after confirmed 200
         this.state.wagerStatus = 'complete';
         this.log('wager_payout_complete', { winner });
         this.broadcastAll({ type: 'wager_payout', winner, amount: this.state.wagerAmount });
+
+        posthog.capture({
+          distinctId: this.room.id,
+          event: 'wager_payout_success',
+          properties: { winner, amount: this.state.wagerAmount },
+        });
       }
     } catch (err) {
       this.log('wager_payout_error', { err: String(err) });
