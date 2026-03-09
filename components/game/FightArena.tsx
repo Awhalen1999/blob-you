@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Matter from 'matter-js';
-import { ArrowLeft, Info, Loader2 } from 'lucide-react';
+import { ArrowLeft, Info } from 'lucide-react';
+import Image from 'next/image';
 import { useGameStore } from '@/store/gameStore';
 import { usePartyKitContext } from '@/contexts/PartyKitContext';
 import { ARENA, PHYSICS, POWERUP, POWERUP_BORDER_COLORS, POWERUP_COLORS, POWERUP_ICONS, POWERUP_LABELS, STATS } from '@/lib/constants';
@@ -904,7 +905,7 @@ export default function FightArena() {
       {isGamba && battleOver && !partyState.wagerPayout && !partyState.wagerDisputed && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/70 z-50">
           <div className="flex flex-col items-center gap-4">
-            <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
+            <Image src="/logo.gif" alt="Loading" width={96} height={96} unoptimized className="object-contain" />
             <p className="text-white text-xl font-bold uppercase tracking-wide">Settling wager...</p>
           </div>
         </div>
