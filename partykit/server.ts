@@ -63,6 +63,7 @@ export default class BlobRoom implements Party.Server {
   private guestReportedWinner: ('host' | 'guest' | 'tie') | null = null;
   private pollInterval: ReturnType<typeof setInterval> | null = null;
   private pollCount = 0;
+  private reportTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor(readonly room: Party.Room) {
     this.state = createInitialState();
@@ -130,6 +131,14 @@ export default class BlobRoom implements Party.Server {
         guestStrokes: this.state.guestStrokes,
         seed,
       });
+
+      // Gamba: start a 3-minute timeout for winner reports
+      if (this.state.wagerStatus === 'confirmed') {
+        this.reportTimeout = setTimeout(() => {
+          this.log('report_timeout');
+          void this.issueRefundAndReset();
+        }, 180_000);
+      }
     }
   }
 
@@ -460,6 +469,9 @@ export default class BlobRoom implements Party.Server {
    * closes without a successful payout.
    */
   private async issueRefundAndReset() {
+    // Guard: bail if already resolved by another path (race protection)
+    if (this.state.wagerStatus === 'none' || this.state.wagerStatus === 'complete') return;
+
     let hostPaid = false;
     let guestPaid = false;
 
@@ -518,6 +530,12 @@ export default class BlobRoom implements Party.Server {
 
     if (!this.hostReportedWinner || !this.guestReportedWinner) return;
 
+    // Both reports in — clear the timeout, proceed to resolution
+    if (this.reportTimeout !== null) {
+      clearTimeout(this.reportTimeout);
+      this.reportTimeout = null;
+    }
+
     if (this.hostReportedWinner === this.guestReportedWinner) {
       void this.payoutWager(this.hostReportedWinner);
     } else {
@@ -545,13 +563,15 @@ export default class BlobRoom implements Party.Server {
         }),
       });
 
+      // Guard: bail if refund already ran while fetch was in-flight (race protection)
+      if (this.state.wagerStatus !== 'confirmed') return;
+
       if (!res.ok) {
         const text = await res.text();
         this.log('wager_payout_failed', { status: res.status, body: text });
-        // Payout failed — refund both (both paid at this point since status was 'confirmed')
         void this.issueRefundAndReset();
       } else {
-        // Only mark complete after confirmed 200 — keeps onClose refund guard intact until then
+        // Happy path: mark complete only after confirmed 200
         this.state.wagerStatus = 'complete';
         this.log('wager_payout_complete', { winner });
         this.broadcastAll({ type: 'wager_payout', winner, amount: this.state.wagerAmount });
@@ -566,6 +586,10 @@ export default class BlobRoom implements Party.Server {
    *  Pass broadcast=false when the room is closing (no clients to notify). */
   private resetWager(broadcast = true) {
     this.stopPolling();
+    if (this.reportTimeout !== null) {
+      clearTimeout(this.reportTimeout);
+      this.reportTimeout = null;
+    }
     this.state.wagerStatus = 'none';
     this.state.wagerAmount = 0;
     this.hostWagerRequestId = null;

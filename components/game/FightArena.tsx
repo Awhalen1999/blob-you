@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Matter from 'matter-js';
-import { ArrowLeft, Info } from 'lucide-react';
+import { ArrowLeft, Info, Loader2 } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
 import { usePartyKitContext } from '@/contexts/PartyKitContext';
 import { ARENA, PHYSICS, POWERUP, POWERUP_BORDER_COLORS, POWERUP_COLORS, POWERUP_ICONS, POWERUP_LABELS, STATS } from '@/lib/constants';
@@ -900,13 +900,51 @@ export default function FightArena() {
         })}
       </div>
 
-      {battleOver && (
+      {/* Gamba: wait for server before showing result */}
+      {isGamba && battleOver && !partyState.wagerPayout && !partyState.wagerDisputed && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/70 z-50">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
+            <p className="text-white text-xl font-bold uppercase tracking-wide">Settling wager...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Gamba: server confirmed result */}
+      {isGamba && partyState.wagerPayout && (
+        <BattleResult
+          isVictory={partyState.wagerPayout.winner === partyState.role}
+          isTie={partyState.wagerPayout.winner === 'tie'}
+          isMultiplayer={isMultiplayer}
+          isGamba={isGamba}
+          myRematchRequested={myRematchRequested}
+          opponentRematchRequested={opponentRematchRequested}
+          onRematch={handleRematch}
+          onMainMenu={handleMainMenu}
+        />
+      )}
+
+      {/* Gamba: dispute/refund */}
+      {isGamba && partyState.wagerDisputed && (
         <BattleResult
           isVictory={isVictory}
           isTie={isTie}
           isMultiplayer={isMultiplayer}
           isGamba={isGamba}
-          wagerDisputed={partyState.wagerDisputed}
+          wagerDisputed
+          myRematchRequested={myRematchRequested}
+          opponentRematchRequested={opponentRematchRequested}
+          onRematch={handleRematch}
+          onMainMenu={handleMainMenu}
+        />
+      )}
+
+      {/* Regular multiplayer / offline: show result immediately */}
+      {!isGamba && battleOver && (
+        <BattleResult
+          isVictory={isVictory}
+          isTie={isTie}
+          isMultiplayer={isMultiplayer}
           myRematchRequested={myRematchRequested}
           opponentRematchRequested={opponentRematchRequested}
           onRematch={handleRematch}

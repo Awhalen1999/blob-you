@@ -28,23 +28,29 @@ STACKCOIN_BOT_TOKEN=<bot token>
 | `POST /api/stackcoin/wager/payout` | Pay winner `amount * 2` (or refund each on tie) |
 | `POST /api/stackcoin/wager/refund` | Partial refund — only refunds players who already paid |
 
-## Two Outcomes
+## Two Modes
+
+### Regular Multiplayer
+
+Local-only result. Each client runs the physics sim, shows VICTORY/DEFEAT when battle ends. No server coordination for result. Rematch available.
+
+### Gamba (Wager Active)
+
+Server-authoritative result. Both clients report their sim result. Server decides outcome. Client does NOT show the result screen until the server responds.
+
+## Two Outcomes (Gamba)
 
 Every wager resolves to exactly one of two outcomes. There is no third path.
 
 ### Happy Path: Payout
 
-Both players pay in, battle completes, both clients agree on a winner, payout API returns 200.
-
 ```
 propose → accept → both pay DM → battle → clients agree → payout 200 → complete
 ```
 
-The winner receives `amount * 2`. On tie, each player gets `amount` back. `wagerStatus` becomes `complete` **only** after a confirmed 200 from the payout API. This is the single gate that marks coins as settled.
+The winner receives `amount * 2`. On tie, each player gets `amount` back. `wagerStatus` becomes `complete` **only** after a confirmed 200 from the payout API.
 
 ### Sad Path: Refund
-
-Anything else. Any failure after coins are taken triggers a refund to whoever already paid.
 
 ```
 [any failure] → refund whoever paid → reset
@@ -53,6 +59,7 @@ Anything else. Any failure after coins are taken triggers a refund to whoever al
 Failures that trigger refund:
 - Player disconnects (any phase after proposal)
 - DM payment timeout (5 min)
+- Battle report timeout (3 min after battle starts)
 - Payout API returns non-200 or throws
 - Clients report different winners (dispute)
 
@@ -86,7 +93,20 @@ All wager logic lives in `partykit/server.ts`. The server owns:
   - `payoutWager(winner)` — happy path. Calls payout API. On 200: set `complete`. On failure: fall through to refund.
   - `issueRefundAndReset()` — sad path. Checks who paid, refunds them, resets all wager state.
 - **One cleanup function:**
-  - `resetWager()` — clears all wager state (status, amount, request IDs, reported winners). Used by both resolution functions and by pre-payment failures.
+  - `resetWager()` — clears all wager state (status, amount, request IDs, reported winners, timers). Used by both resolution functions and by pre-payment failures.
+
+### Race Protection
+
+Both resolution functions have stale-state guards:
+- `issueRefundAndReset()` bails if `wagerStatus` is `none` or `complete`
+- `payoutWager()` bails after `await fetch` if `wagerStatus` is no longer `confirmed`
+
+Whichever resolution runs first wins. The other sees the changed status and bails. No double-payout, no double-refund.
+
+### Timeouts
+
+- **DM payment timeout:** 5 min (60 polls x 5s). If both players don't accept the StackCoin DM, refund whoever paid.
+- **Battle report timeout:** 3 min after `battle_start`. If both clients don't report a winner, refund both. Covers backgrounded tabs and stalled sims.
 
 ### `onClose` guard
 
@@ -95,14 +115,22 @@ if wagerStatus is active (not 'none', not 'complete'):
   await issueRefundAndReset()
 ```
 
-This single guard covers every disconnect scenario. The `await` ensures the refund API call completes before the room state is wiped.
+Covers every disconnect scenario. The `await` ensures the refund API call completes before state is wiped.
 
 ## Client Architecture
 
-The client (`PartyKitContext`) holds wager state derived from server messages:
+The client (`PartyKitContext`) derives wager state from `roomState` (single source of truth):
 
-- `wagerStatus` / `wagerAmount` — set from `wager_status` messages
-- `wagerPayout` — set from `wager_payout` message (happy path)
-- `wagerDisputed` — set from `wager_dispute` message (sad path, dispute variant)
+- `wagerStatus` / `wagerAmount` — derived from `roomState.wagerStatus` / `roomState.wagerAmount`
+- `wagerPayout` — set from `wager_payout` message (happy path outcome)
+- `wagerDisputed` — set from `wager_dispute` message (sad path outcome)
 
-The client never decides outcomes. It sends `report_winner` after battle, and the server decides whether to pay out or refund based on agreement.
+### Gamba Result Screen
+
+The client does not show the battle result for gamba until the server responds:
+
+1. Battle ends locally → `report_winner` sent → "Settling wager..." overlay shown
+2. Server responds with `wager_payout` → result screen shown using server's winner
+3. Server responds with `wager_dispute` → result screen shown with "Wager cancelled — coins refunded"
+
+Regular multiplayer shows the result immediately on `battleOver` — no server involvement.
