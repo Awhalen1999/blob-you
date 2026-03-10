@@ -95,6 +95,9 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
         setRole(msg.role);
         setRoomState(msg.roomState);
         setStatus('connected');
+        // So the player who joins second (e.g. guest) knows the existing opponent's Discord status
+        const opponentDiscord = msg.role === 'host' ? msg.roomState.guestHasDiscord : msg.roomState.hostHasDiscord;
+        setOpponentHasDiscord(opponentDiscord);
         break;
 
       case 'player_joined':
@@ -115,8 +118,8 @@ export function PartyKitProvider({ children }: { children: ReactNode }) {
         setRoomState((prev) => {
           if (!prev) return prev;
           return msg.role === 'host'
-            ? { ...prev, hostId: null, hostName: null, hostReady: false, hostStrokes: null, phase: 'waiting', wagerStatus: 'none', wagerAmount: 0 }
-            : { ...prev, guestId: null, guestName: null, guestReady: false, guestStrokes: null, phase: 'waiting', wagerStatus: 'none', wagerAmount: 0 };
+            ? { ...prev, hostId: null, hostName: null, hostHasDiscord: false, hostReady: false, hostStrokes: null, phase: 'waiting', wagerStatus: 'none', wagerAmount: 0 }
+            : { ...prev, guestId: null, guestName: null, guestHasDiscord: false, guestReady: false, guestStrokes: null, phase: 'waiting', wagerStatus: 'none', wagerAmount: 0 };
         });
         break;
 

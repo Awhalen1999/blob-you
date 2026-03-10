@@ -12,6 +12,8 @@ export type RoomState = {
   guestId: string | null;
   hostName: string | null;
   guestName: string | null;
+  hostHasDiscord: boolean;
+  guestHasDiscord: boolean;
   // Lobby ready (clicked "Start Drawing")
   hostLobbyReady: boolean;
   guestLobbyReady: boolean;

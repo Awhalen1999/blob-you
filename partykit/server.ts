@@ -43,6 +43,8 @@ function createInitialState(): RoomState {
     guestId: null,
     hostName: null,
     guestName: null,
+    hostHasDiscord: false,
+    guestHasDiscord: false,
     hostLobbyReady: false,
     guestLobbyReady: false,
     hostReady: false,
@@ -237,10 +239,12 @@ export default class BlobRoom implements Party.Server {
     if (role === 'host') {
       this.state.hostId = conn.id;
       this.state.hostName = playerName;
+      this.state.hostHasDiscord = hasDiscordId;
       if (hasDiscordId) this.hostDiscordId = discordId!;
     } else {
       this.state.guestId = conn.id;
       this.state.guestName = playerName;
+      this.state.guestHasDiscord = hasDiscordId;
       if (hasDiscordId) this.guestDiscordId = discordId!;
     }
 
@@ -328,6 +332,8 @@ export default class BlobRoom implements Party.Server {
         guestId: this.state.guestId,
         hostName: this.state.hostName,
         guestName: this.state.guestName,
+        hostHasDiscord: this.state.hostHasDiscord,
+        guestHasDiscord: this.state.guestHasDiscord,
       };
       // Reset wager state without broadcasting (rematch_start handles client reset)
       this.resetWager(false);
