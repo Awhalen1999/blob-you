@@ -7,10 +7,15 @@ const NEXTJS_URL = process.env.NEXTJS_URL ?? 'http://localhost:3000';
 const POLL_INTERVAL_MS = 5000;
 const MAX_POLL_COUNT = 60; // 5 minutes
 
-const posthog = new PostHog(
-  process.env.POSTHOG_API_KEY ?? process.env.NEXT_PUBLIC_POSTHOG_KEY ?? '',
-  { host: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com' }
-);
+let _posthog: PostHog | null = null;
+function getPostHog(): PostHog | null {
+  const key = process.env.POSTHOG_API_KEY ?? process.env.NEXT_PUBLIC_POSTHOG_KEY;
+  if (!key) return null;
+  if (!_posthog) {
+    _posthog = new PostHog(key, { host: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com' });
+  }
+  return _posthog;
+}
 
 /** Validate stroke data to prevent crashes from malformed input */
 function isValidStroke(stroke: unknown): stroke is Stroke {
@@ -142,7 +147,7 @@ export default class BlobRoom implements Party.Server {
       if (this.state.wagerStatus === 'confirmed') {
         this.reportTimeout = setTimeout(() => {
           this.log('report_timeout');
-          posthog.capture({
+          getPostHog()?.capture({
             distinctId: this.room.id,
             event: 'report_timeout',
             properties: { amount: this.state.wagerAmount },
@@ -383,7 +388,12 @@ export default class BlobRoom implements Party.Server {
   }
 
   private async initiateWager() {
-    if (!this.hostDiscordId || !this.guestDiscordId) return;
+    if (!this.hostDiscordId || !this.guestDiscordId) {
+      this.log('wager_initiating_skipped', { reason: 'missing_discord_ids', host: !!this.hostDiscordId, guest: !!this.guestDiscordId });
+      this.broadcastAll({ type: 'error', message: 'Wager failed: Server missing Discord IDs. Ensure both players signed in with Discord.' });
+      this.resetWager();
+      return;
+    }
 
     this.state.wagerStatus = 'pending_payment';
     this.broadcastAll({ type: 'wager_status', status: 'pending_payment', amount: this.state.wagerAmount });
@@ -403,6 +413,7 @@ export default class BlobRoom implements Party.Server {
       if (!res.ok) {
         const text = await res.text();
         this.log('wager_create_failed', { status: res.status, body: text });
+        this.broadcastAll({ type: 'error', message: `Wager failed (${res.status}): ${text.slice(0, 100)}` });
         this.resetWager();
         return;
       }
@@ -412,7 +423,7 @@ export default class BlobRoom implements Party.Server {
       this.guestWagerRequestId = data.guestRequestId;
       this.log('wager_requests_created', { hostReqId: data.hostRequestId, guestReqId: data.guestRequestId });
 
-      posthog.capture({
+      getPostHog()?.capture({
         distinctId: this.room.id,
         event: 'wager_created',
         properties: { amount: this.state.wagerAmount, host_discord_id: this.hostDiscordId, guest_discord_id: this.guestDiscordId },
@@ -421,6 +432,7 @@ export default class BlobRoom implements Party.Server {
       this.startPolling();
     } catch (err) {
       this.log('wager_create_error', { err: String(err) });
+      this.broadcastAll({ type: 'error', message: `Wager failed: ${err instanceof Error ? err.message : String(err)}` });
       this.resetWager();
     }
   }
@@ -475,7 +487,7 @@ export default class BlobRoom implements Party.Server {
         this.log('wager_confirmed');
         this.broadcastAll({ type: 'wager_status', status: 'confirmed', amount: this.state.wagerAmount });
 
-        posthog.capture({
+        getPostHog()?.capture({
           distinctId: this.room.id,
           event: 'wager_payment_confirmed',
           properties: { amount: this.state.wagerAmount },
@@ -528,7 +540,7 @@ export default class BlobRoom implements Party.Server {
         });
         this.log('refund_issued', { hostPaid, guestPaid });
 
-        posthog.capture({
+        getPostHog()?.capture({
           distinctId: this.room.id,
           event: 'wager_refund_issued',
           properties: { reason: 'disconnect', host_paid: hostPaid, guest_paid: guestPaid, amount: this.state.wagerAmount },
@@ -572,7 +584,7 @@ export default class BlobRoom implements Party.Server {
       this.log('wager_dispute', { hostReport: this.hostReportedWinner, guestReport: this.guestReportedWinner });
       this.broadcastAll({ type: 'wager_dispute' });
 
-      posthog.capture({
+      getPostHog()?.capture({
         distinctId: this.room.id,
         event: 'wager_dispute',
         properties: { host_report: this.hostReportedWinner, guest_report: this.guestReportedWinner, amount: this.state.wagerAmount },
@@ -611,7 +623,7 @@ export default class BlobRoom implements Party.Server {
         this.log('wager_payout_complete', { winner });
         this.broadcastAll({ type: 'wager_payout', winner, amount: this.state.wagerAmount });
 
-        posthog.capture({
+        getPostHog()?.capture({
           distinctId: this.room.id,
           event: 'wager_payout_success',
           properties: { winner, amount: this.state.wagerAmount },
