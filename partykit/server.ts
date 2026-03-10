@@ -397,7 +397,7 @@ export default class BlobRoom implements Party.Server {
 
     this.state.wagerStatus = 'pending_payment';
     this.broadcastAll({ type: 'wager_status', status: 'pending_payment', amount: this.state.wagerAmount });
-    this.log('wager_initiating', { amount: this.state.wagerAmount });
+    this.log('wager_initiating', { amount: this.state.wagerAmount, url: NEXTJS_URL });
 
     try {
       const res = await fetch(`${NEXTJS_URL}/api/stackcoin/wager/create`, {
