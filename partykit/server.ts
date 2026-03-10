@@ -3,7 +3,7 @@ import { PostHog } from 'posthog-node';
 import type { Stroke } from '@/types/game';
 import type { ClientMessage, ServerMessage, RoomState, PlayerRole } from './types';
 
-const NEXTJS_URL = process.env.NEXTJS_URL ?? 'http://localhost:3000';
+const NEXTJS_URL = 'https://blob-you.vercel.app';
 const POLL_INTERVAL_MS = 5000;
 const MAX_POLL_COUNT = 60; // 5 minutes
 
