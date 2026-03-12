@@ -44,6 +44,32 @@ export async function getRequestStatus(
   return req.status;
 }
 
+export type StkTransaction = {
+  id: number;
+  amount: number;
+  from: { id?: number; username?: string };
+  to: { id?: number; username?: string };
+  time: string;
+  label?: string | null;
+};
+
+export async function getTransactionsForUser(discordId: string): Promise<{
+  transactions: StkTransaction[];
+  user: { id: number; balance: number; username: string };
+} | null> {
+  const user = await getUserByDiscordId(discordId);
+  if (!user) return null;
+
+  const res = await fetch(
+    `https://stackcoin.world/api/transactions?includes_discord_id=${discordId}&limit=100`,
+    { headers: { Authorization: `Bearer ${process.env.STACKCOIN_BOT_TOKEN}` } },
+  );
+  if (!res.ok) return { transactions: [], user };
+
+  const data = await res.json();
+  return { transactions: data.transactions ?? [], user };
+}
+
 // ---------------------------------------------------------------------------
 // Gateway — real-time event listener for payment acceptance
 // ---------------------------------------------------------------------------

@@ -16,6 +16,7 @@ import FightArena from "@/components/game/FightArena";
 import Button from "@/components/ui/Button";
 import { PartyStatus } from "@/components/ui/PartyStatus";
 import { HowToPlay } from "@/components/ui/HowToPlay";
+import CoinBadge from "@/components/ui/CoinBadge";
 
 type MenuView = "main" | "gamba" | "lobby" | "join";
 
@@ -732,10 +733,9 @@ export default function Home() {
         Sign Out
       </Button>
 
-      {stkBalance !== null && (
-        <div className="absolute bottom-4 left-4 z-10 flex items-center gap-1.5 text-sm font-medium text-white">
-          <Image src="/stack-coin.png" alt="STK" width={20} height={20} />
-          <span>{stkBalance.toLocaleString()} STK</span>
+      {stkBalance !== null && discordId && (
+        <div className="absolute bottom-4 left-4 z-10">
+          <CoinBadge balance={stkBalance} discordId={discordId} />
         </div>
       )}
 
