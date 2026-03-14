@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { LogOut, Loader2, Copy, Check, ShoppingBag } from "lucide-react";
+import { LogOut, Loader2, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { auth } from "@/lib/firebase";
@@ -788,10 +788,12 @@ export default function Home() {
           {isDiscordWithStk && (
             <Link href="/shop">
               <Button
-                variant="secondary"
+                variant="success"
                 size="lg"
                 fullWidth
-                icon={<ShoppingBag className="w-4 h-4" />}
+                icon={
+                  <Image src="/stack-coin.png" alt="STK" width={18} height={18} />
+                }
               >
                 Shop
               </Button>
