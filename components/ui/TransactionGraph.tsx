@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { StkTransaction } from "@/lib/stackcoin";
 
 interface TransactionGraphProps {
@@ -12,18 +12,15 @@ interface TransactionGraphProps {
 type BalancePoint = {
   time: Date;
   balance: number;
-  tx: StkTransaction;
 };
 
-const PADDING = { top: 20, right: 16, bottom: 32, left: 52 };
+const PADDING = { top: 28, right: 16, bottom: 32, left: 52 };
 
 export default function TransactionGraph({
   transactions,
   userId,
   currentBalance,
 }: TransactionGraphProps) {
-  const [hovered, setHovered] = useState<number | null>(null);
-
   const points = useMemo<BalancePoint[]>(() => {
     if (transactions.length === 0) return [];
 
@@ -42,7 +39,7 @@ export default function TransactionGraph({
     for (const tx of sorted) {
       if (tx.from.id === userId) balance -= tx.amount;
       else if (tx.to.id === userId) balance += tx.amount;
-      result.push({ time: new Date(tx.time), balance, tx });
+      result.push({ time: new Date(tx.time), balance });
     }
 
     return result;
@@ -105,7 +102,6 @@ export default function TransactionGraph({
     <svg
       viewBox={`0 0 ${width} ${height}`}
       className="w-full h-auto"
-      onMouseLeave={() => setHovered(null)}
     >
       <defs>
         <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
@@ -164,62 +160,6 @@ export default function TransactionGraph({
         strokeLinejoin="round"
         strokeLinecap="round"
       />
-
-      {points.map((p, i) => {
-        const cx = toX(p.time.getTime());
-        const cy = toY(p.balance);
-        const isHovered = hovered === i;
-        const isSent = p.tx.from.id === userId;
-        return (
-          <g key={p.tx.id}>
-            <circle
-              cx={cx}
-              cy={cy}
-              r={isHovered ? 5 : 3}
-              fill={isHovered ? "#fff" : "#5675ff"}
-              stroke={isHovered ? "#5675ff" : "none"}
-              strokeWidth={2}
-              className="cursor-pointer transition-all duration-100"
-              onMouseEnter={() => setHovered(i)}
-            />
-            {isHovered && (
-              <g>
-                <rect
-                  x={Math.min(cx - 60, width - PADDING.right - 120)}
-                  y={cy - 42}
-                  width={120}
-                  height={34}
-                  rx={4}
-                  fill="rgba(0,0,0,0.85)"
-                  stroke="rgba(255,255,255,0.15)"
-                />
-                <text
-                  x={Math.min(cx, width - PADDING.right - 60)}
-                  y={cy - 26}
-                  textAnchor="middle"
-                  fill="white"
-                  fontSize="10"
-                  fontWeight="bold"
-                >
-                  {isSent ? "-" : "+"}
-                  {p.tx.amount} STK
-                </text>
-                <text
-                  x={Math.min(cx, width - PADDING.right - 60)}
-                  y={cy - 14}
-                  textAnchor="middle"
-                  fill="rgba(255,255,255,0.5)"
-                  fontSize="8"
-                >
-                  {isSent
-                    ? `→ ${p.tx.to.username ?? "?"}`
-                    : `← ${p.tx.from.username ?? "?"}`}
-                </text>
-              </g>
-            )}
-          </g>
-        );
-      })}
     </svg>
   );
 }

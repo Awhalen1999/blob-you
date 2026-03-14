@@ -52,7 +52,7 @@ export default function StackCoinPopup({
   const sorted = [...transactions].sort(
     (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime(),
   );
-  const recent = sorted.slice(0, 10);
+  const recent = sorted.slice(0, 5);
 
   const formatTime = (iso: string) => {
     const d = new Date(iso);
@@ -65,7 +65,7 @@ export default function StackCoinPopup({
       onClick={handleBackdropClick}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
     >
-      <div className="transparent-bg relative w-full max-w-lg mx-4 rounded-sm border border-white/20 p-lg max-h-[85vh] overflow-y-auto">
+      <div className="transparent-bg relative w-full max-w-lg mx-4 rounded-sm border border-white/20 p-lg max-h-[85vh] overflow-y-auto scrollbar-hide">
         <button
           onClick={onClose}
           className="absolute top-3 right-3 text-white/40 hover:text-white transition-colors"
@@ -114,11 +114,11 @@ export default function StackCoinPopup({
                   Recent Transactions
                 </p>
                 <div className="flex flex-col gap-1.5">
-                  {recent.map((tx) => {
+                  {recent.map((tx, i) => {
                     const isSent = tx.from.id === userId;
                     return (
                       <div
-                        key={tx.id}
+                        key={`${tx.id}-${i}`}
                         className="flex items-center gap-3 bg-black/20 rounded px-3 py-2 border border-white/5"
                       >
                         <div

@@ -37,12 +37,26 @@ export async function getTransactionsForUser(discordId: string): Promise<{
   const user = await getUserByDiscordId(discordId);
   if (!user) return null;
 
-  const res = await fetch(
-    `${STK_BASE_URL}/api/transactions?includes_discord_id=${discordId}&limit=100`,
-    { headers: { Authorization: `Bearer ${process.env.STACKCOIN_BOT_TOKEN}` } },
-  );
-  if (!res.ok) return { transactions: [], user };
+  const headers = { Authorization: `Bearer ${process.env.STACKCOIN_BOT_TOKEN}` };
+  const opts = { headers, cache: 'no-store' as const };
+  const [fromRes, toRes] = await Promise.all([
+    fetch(`${STK_BASE_URL}/api/transactions?from_user_id=${user.id}&limit=100`, opts),
+    fetch(`${STK_BASE_URL}/api/transactions?to_user_id=${user.id}&limit=100`, opts),
+  ]);
+  const [fromData, toData] = await Promise.all([
+    fromRes.ok ? fromRes.json() : { transactions: [] },
+    toRes.ok ? toRes.json() : { transactions: [] },
+  ]);
 
-  const data = await res.json();
-  return { transactions: data.transactions ?? [], user };
+  const seen = new Set<number>();
+  const all: StkTransaction[] = [];
+  for (const tx of [...(fromData.transactions ?? []), ...(toData.transactions ?? [])]) {
+    if (!seen.has(tx.id)) {
+      seen.add(tx.id);
+      all.push(tx);
+    }
+  }
+  all.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+
+  return { transactions: all, user };
 }
