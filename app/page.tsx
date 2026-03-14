@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { LogOut, Loader2, Copy, Check } from "lucide-react";
+import Link from "next/link";
+import { LogOut, Loader2, Copy, Check, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { auth } from "@/lib/firebase";
@@ -784,6 +785,18 @@ export default function Home() {
           >
             Offline Match
           </Button>
+          {isDiscordWithStk && (
+            <Link href="/shop">
+              <Button
+                variant="secondary"
+                size="lg"
+                fullWidth
+                icon={<ShoppingBag className="w-4 h-4" />}
+              >
+                Shop
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </div>

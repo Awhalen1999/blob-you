@@ -3,7 +3,7 @@ import { Client } from 'stackcoin';
 const STK_BASE_URL = 'https://stackcoin.world';
 
 let _client: Client | null = null;
-function getStkClient(): Client {
+export function getStkClient(): Client {
   if (!_client) {
     const token = process.env.STACKCOIN_BOT_TOKEN;
     if (!token) throw new Error('STACKCOIN_BOT_TOKEN not set');
