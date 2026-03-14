@@ -1,10 +1,11 @@
 import type * as Party from 'partykit/server';
 import { PostHog } from 'posthog-node';
+import { Client } from 'stackcoin';
 import type { Stroke } from '@/types/game';
 import type { ClientMessage, ServerMessage, RoomState, PlayerRole } from './types';
 
-const NEXTJS_URL = 'https://blob-you.vercel.app';
 const PAYMENT_TIMEOUT_MS = 300_000; // 5 minutes
+const POLL_INTERVAL_MS = 3_000;
 
 let _posthog: PostHog | null = null;
 function getPostHog(): PostHog | null {
@@ -16,7 +17,6 @@ function getPostHog(): PostHog | null {
   return _posthog;
 }
 
-/** Validate stroke data to prevent crashes from malformed input */
 function isValidStroke(stroke: unknown): stroke is Stroke {
   if (!stroke || typeof stroke !== 'object') return false;
   const s = stroke as Record<string, unknown>;
@@ -64,7 +64,6 @@ function createInitialState(): RoomState {
 export default class BlobRoom implements Party.Server {
   state: RoomState;
 
-  // Wager-specific server state (not synced to clients directly)
   private hostDiscordId: string | null = null;
   private guestDiscordId: string | null = null;
   private hostAccepted = false;
@@ -74,8 +73,25 @@ export default class BlobRoom implements Party.Server {
   private paymentTimeout: ReturnType<typeof setTimeout> | null = null;
   private reportTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  // StackCoin SDK state
+  private stkClient: InstanceType<typeof Client> | null = null;
+  private hostRequestId: number | null = null;
+  private guestRequestId: number | null = null;
+  private hostStkUserId: number | null = null;
+  private guestStkUserId: number | null = null;
+  private pollInterval: ReturnType<typeof setInterval> | null = null;
+
   constructor(readonly room: Party.Room) {
     this.state = createInitialState();
+  }
+
+  private getStkClient(): InstanceType<typeof Client> {
+    if (!this.stkClient) {
+      const token = process.env.STACKCOIN_BOT_TOKEN as string | undefined;
+      if (!token) throw new Error('STACKCOIN_BOT_TOKEN not set');
+      this.stkClient = new Client({ token });
+    }
+    return this.stkClient;
   }
 
   private log(action: string, data?: Record<string, unknown>) {
@@ -141,7 +157,6 @@ export default class BlobRoom implements Party.Server {
         seed,
       });
 
-      // Gamba: start a 3-minute timeout for winner reports
       if (this.state.wagerStatus === 'confirmed') {
         this.reportTimeout = setTimeout(() => {
           this.log('report_timeout');
@@ -153,54 +168,6 @@ export default class BlobRoom implements Party.Server {
           void this.issueRefundAndReset();
         }, 180_000);
       }
-    }
-  }
-
-  // ===== HTTP API — receives push notifications from the StackCoin gateway =====
-
-  async onRequest(req: Party.Request) {
-    if (req.method !== 'POST') {
-      return new Response('Method not allowed', { status: 405 });
-    }
-
-    try {
-      const body = await req.json() as Record<string, unknown>;
-
-      if (body.type === 'request_accepted') {
-        const role = body.role as 'host' | 'guest' | undefined;
-        if (role === 'host' || role === 'guest') {
-          this.handleRequestAccepted(role);
-        }
-      }
-    } catch (err) {
-      this.log('onRequest_error', { err: String(err) });
-    }
-
-    return new Response('ok');
-  }
-
-  private handleRequestAccepted(role: 'host' | 'guest') {
-    if (this.state.wagerStatus !== 'pending_payment') return;
-
-    if (role === 'host') this.hostAccepted = true;
-    if (role === 'guest') this.guestAccepted = true;
-    this.log('request_accepted', { role, hostAccepted: this.hostAccepted, guestAccepted: this.guestAccepted });
-
-    if (this.hostAccepted && this.guestAccepted) {
-      if (this.paymentTimeout !== null) {
-        clearTimeout(this.paymentTimeout);
-        this.paymentTimeout = null;
-      }
-
-      this.state.wagerStatus = 'confirmed';
-      this.log('wager_confirmed');
-      this.broadcastAll({ type: 'wager_status', status: 'confirmed', amount: this.state.wagerAmount });
-
-      getPostHog()?.capture({
-        distinctId: this.room.id,
-        event: 'wager_payment_confirmed',
-        properties: { amount: this.state.wagerAmount },
-      });
     }
   }
 
@@ -218,7 +185,6 @@ export default class BlobRoom implements Party.Server {
 
     this.broadcast({ type: 'player_left', role });
 
-    // Sad path: if wager is active (not settled), refund whoever paid and reset.
     if (this.state.wagerStatus !== 'none' && this.state.wagerStatus !== 'complete') {
       await this.issueRefundAndReset();
     }
@@ -387,7 +353,7 @@ export default class BlobRoom implements Party.Server {
     }
   }
 
-  // ===== WAGER FLOW =====
+  // ===== WAGER FLOW (StackCoin SDK — all in-process) =====
 
   private handleProposeWager(conn: Party.Connection, amount: unknown) {
     const role = this.getRole(conn.id);
@@ -445,57 +411,137 @@ export default class BlobRoom implements Party.Server {
     this.log('wager_initiating', { amount: this.state.wagerAmount });
 
     try {
-      const res = await fetch(`${NEXTJS_URL}/api/stackcoin/wager/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          hostDiscordId: this.hostDiscordId,
-          guestDiscordId: this.guestDiscordId,
-          amount: this.state.wagerAmount,
-          roomId: this.room.id,
-        }),
-      });
+      const client = this.getStkClient();
 
-      if (!res.ok) {
-        const text = await res.text();
-        this.log('wager_create_failed', { status: res.status, body: text });
-        this.broadcastAll({ type: 'error', message: `Wager failed (${res.status}): ${text.slice(0, 100)}` });
+      const [hostUsers, guestUsers] = await Promise.all([
+        client.getUsers({ discordId: this.hostDiscordId }),
+        client.getUsers({ discordId: this.guestDiscordId }),
+      ]);
+      const hostUser = hostUsers[0];
+      const guestUser = guestUsers[0];
+
+      if (!hostUser?.id || !guestUser?.id) {
+        this.log('wager_user_lookup_failed', { hostFound: !!hostUser?.id, guestFound: !!guestUser?.id });
+        this.broadcastAll({ type: 'error', message: 'Could not find StackCoin users.' });
         this.resetWager();
         return;
       }
 
-      const data = await res.json();
-      this.log('wager_requests_created', { hostReqId: data.hostRequestId, guestReqId: data.guestRequestId });
+      this.hostStkUserId = hostUser.id;
+      this.guestStkUserId = guestUser.id;
+
+      const label = `blob.you wager — ${this.state.wagerAmount} STK (accept within 5 min)`;
+      const [hostRes, guestRes] = await Promise.all([
+        client.createRequest(hostUser.id, this.state.wagerAmount, { label }),
+        client.createRequest(guestUser.id, this.state.wagerAmount, { label }),
+      ]);
+
+      this.hostRequestId = hostRes.request_id;
+      this.guestRequestId = guestRes.request_id;
+
+      this.log('wager_requests_created', {
+        hostReqId: this.hostRequestId,
+        guestReqId: this.guestRequestId,
+      });
 
       getPostHog()?.capture({
         distinctId: this.room.id,
         event: 'wager_created',
-        properties: { amount: this.state.wagerAmount, host_discord_id: this.hostDiscordId, guest_discord_id: this.guestDiscordId },
+        properties: {
+          amount: this.state.wagerAmount,
+          host_discord_id: this.hostDiscordId,
+          guest_discord_id: this.guestDiscordId,
+        },
       });
 
-      // Payment timeout — if not confirmed within 5 minutes, refund
+      this.startPolling();
+
       this.paymentTimeout = setTimeout(() => {
         if (this.state.wagerStatus === 'pending_payment') {
           this.log('payment_timeout');
           getPostHog()?.capture({
             distinctId: this.room.id,
             event: 'payment_timeout',
-            properties: { amount: this.state.wagerAmount, hostAccepted: this.hostAccepted, guestAccepted: this.guestAccepted },
+            properties: {
+              amount: this.state.wagerAmount,
+              hostAccepted: this.hostAccepted,
+              guestAccepted: this.guestAccepted,
+            },
           });
           void this.issueRefundAndReset();
         }
       }, PAYMENT_TIMEOUT_MS);
     } catch (err) {
       this.log('wager_create_error', { err: String(err) });
-      this.broadcastAll({ type: 'error', message: `Wager failed: ${err instanceof Error ? err.message : String(err)}` });
+      this.broadcastAll({
+        type: 'error',
+        message: `Wager failed: ${err instanceof Error ? err.message : String(err)}`,
+      });
       this.resetWager();
     }
   }
 
-  /**
-   * Safety net: refunds whoever has already paid, then resets.
-   * Uses local acceptance flags (set by gateway push) to know who paid.
-   */
+  private startPolling() {
+    this.stopPolling();
+    this.pollInterval = setInterval(() => {
+      void this.pollRequestStatus();
+    }, POLL_INTERVAL_MS);
+  }
+
+  private stopPolling() {
+    if (this.pollInterval !== null) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = null;
+    }
+  }
+
+  private async pollRequestStatus() {
+    if (this.state.wagerStatus !== 'pending_payment') {
+      this.stopPolling();
+      return;
+    }
+    if (!this.hostRequestId || !this.guestRequestId) return;
+
+    try {
+      const client = this.getStkClient();
+      const [hostReq, guestReq] = await Promise.all([
+        client.getRequest(this.hostRequestId),
+        client.getRequest(this.guestRequestId),
+      ]);
+
+      if (hostReq.status === 'accepted' && !this.hostAccepted) {
+        this.hostAccepted = true;
+        this.log('stk_request_accepted', { role: 'host', requestId: this.hostRequestId });
+      }
+      if (guestReq.status === 'accepted' && !this.guestAccepted) {
+        this.guestAccepted = true;
+        this.log('stk_request_accepted', { role: 'guest', requestId: this.guestRequestId });
+      }
+
+      if (this.hostAccepted && this.guestAccepted) {
+        this.stopPolling();
+        if (this.paymentTimeout !== null) {
+          clearTimeout(this.paymentTimeout);
+          this.paymentTimeout = null;
+        }
+
+        this.state.wagerStatus = 'confirmed';
+        this.log('wager_confirmed');
+        this.broadcastAll({ type: 'wager_status', status: 'confirmed', amount: this.state.wagerAmount });
+
+        getPostHog()?.capture({
+          distinctId: this.room.id,
+          event: 'wager_payment_confirmed',
+          properties: { amount: this.state.wagerAmount },
+        });
+      }
+    } catch (err) {
+      this.log('poll_error', { err: String(err) });
+    }
+  }
+
+  // ===== Payout & Refund (direct SDK calls) =====
+
   private async issueRefundAndReset() {
     if (this.state.wagerStatus === 'none' || this.state.wagerStatus === 'complete') return;
 
@@ -506,21 +552,29 @@ export default class BlobRoom implements Party.Server {
 
     if (hostPaid || guestPaid) {
       try {
-        await fetch(`${NEXTJS_URL}/api/stackcoin/wager/refund`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            hostDiscordId: hostPaid ? this.hostDiscordId : null,
-            guestDiscordId: guestPaid ? this.guestDiscordId : null,
-            amount: this.state.wagerAmount,
-          }),
-        });
+        const client = this.getStkClient();
+        const label = 'blob.you — wager refund';
+        const tasks: Promise<unknown>[] = [];
+
+        if (hostPaid && this.hostStkUserId) {
+          tasks.push(client.send(this.hostStkUserId, this.state.wagerAmount, { label }));
+        }
+        if (guestPaid && this.guestStkUserId) {
+          tasks.push(client.send(this.guestStkUserId, this.state.wagerAmount, { label }));
+        }
+
+        await Promise.all(tasks);
         this.log('refund_issued', { hostPaid, guestPaid });
 
         getPostHog()?.capture({
           distinctId: this.room.id,
           event: 'wager_refund_issued',
-          properties: { reason: 'disconnect', host_paid: hostPaid, guest_paid: guestPaid, amount: this.state.wagerAmount },
+          properties: {
+            reason: 'disconnect',
+            host_paid: hostPaid,
+            guest_paid: guestPaid,
+            amount: this.state.wagerAmount,
+          },
         });
       } catch (err) {
         this.log('refund_error', { err: String(err) });
@@ -556,13 +610,20 @@ export default class BlobRoom implements Party.Server {
     if (this.hostReportedWinner === this.guestReportedWinner) {
       void this.payoutWager(this.hostReportedWinner);
     } else {
-      this.log('wager_dispute', { hostReport: this.hostReportedWinner, guestReport: this.guestReportedWinner });
+      this.log('wager_dispute', {
+        hostReport: this.hostReportedWinner,
+        guestReport: this.guestReportedWinner,
+      });
       this.broadcastAll({ type: 'wager_dispute' });
 
       getPostHog()?.capture({
         distinctId: this.room.id,
         event: 'wager_dispute',
-        properties: { host_report: this.hostReportedWinner, guest_report: this.guestReportedWinner, amount: this.state.wagerAmount },
+        properties: {
+          host_report: this.hostReportedWinner,
+          guest_report: this.guestReportedWinner,
+          amount: this.state.wagerAmount,
+        },
       });
 
       void this.issueRefundAndReset();
@@ -570,48 +631,42 @@ export default class BlobRoom implements Party.Server {
   }
 
   private async payoutWager(winner: 'host' | 'guest' | 'tie') {
-    if (!this.hostDiscordId || !this.guestDiscordId) return;
+    if (!this.hostStkUserId || !this.guestStkUserId) return;
 
     this.log('wager_paying_out', { winner, amount: this.state.wagerAmount });
 
     try {
-      const res = await fetch(`${NEXTJS_URL}/api/stackcoin/wager/payout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          winner,
-          hostDiscordId: this.hostDiscordId,
-          guestDiscordId: this.guestDiscordId,
-          amount: this.state.wagerAmount,
-        }),
-      });
+      const client = this.getStkClient();
+
+      if (winner === 'tie') {
+        await Promise.all([
+          client.send(this.hostStkUserId, this.state.wagerAmount, { label: 'blob.you — tie refund' }),
+          client.send(this.guestStkUserId, this.state.wagerAmount, { label: 'blob.you — tie refund' }),
+        ]);
+      } else {
+        const winnerId = winner === 'host' ? this.hostStkUserId : this.guestStkUserId;
+        await client.send(winnerId, this.state.wagerAmount * 2, { label: 'blob.you — wager win' });
+      }
 
       if (this.state.wagerStatus !== 'confirmed') return;
 
-      if (!res.ok) {
-        const text = await res.text();
-        this.log('wager_payout_failed', { status: res.status, body: text });
-        void this.issueRefundAndReset();
-      } else {
-        this.state.wagerStatus = 'complete';
-        this.log('wager_payout_complete', { winner });
-        this.broadcastAll({ type: 'wager_payout', winner, amount: this.state.wagerAmount });
+      this.state.wagerStatus = 'complete';
+      this.log('wager_payout_complete', { winner });
+      this.broadcastAll({ type: 'wager_payout', winner, amount: this.state.wagerAmount });
 
-        getPostHog()?.capture({
-          distinctId: this.room.id,
-          event: 'wager_payout_success',
-          properties: { winner, amount: this.state.wagerAmount },
-        });
-      }
+      getPostHog()?.capture({
+        distinctId: this.room.id,
+        event: 'wager_payout_success',
+        properties: { winner, amount: this.state.wagerAmount },
+      });
     } catch (err) {
       this.log('wager_payout_error', { err: String(err) });
       void this.issueRefundAndReset();
     }
   }
 
-  /** Single source of truth for wager cleanup. Clears all wager state.
-   *  Pass broadcast=false when the room is closing (no clients to notify). */
   private resetWager(broadcast = true) {
+    this.stopPolling();
     if (this.paymentTimeout !== null) {
       clearTimeout(this.paymentTimeout);
       this.paymentTimeout = null;
@@ -626,6 +681,10 @@ export default class BlobRoom implements Party.Server {
     this.guestAccepted = false;
     this.hostReportedWinner = null;
     this.guestReportedWinner = null;
+    this.hostRequestId = null;
+    this.guestRequestId = null;
+    this.hostStkUserId = null;
+    this.guestStkUserId = null;
     if (broadcast) {
       this.broadcastAll({ type: 'wager_status', status: 'none', amount: 0 });
     }
