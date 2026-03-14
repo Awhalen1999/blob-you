@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ShopItem, ItemCategory } from '@/lib/shop/items';
 
@@ -8,42 +9,53 @@ export type ShopItemWithOwnership = ShopItem & { owned: boolean };
 
 type Equipped = Partial<Record<ItemCategory, string>>;
 
+interface ShopData {
+  items: ShopItemWithOwnership[];
+  equipped: Equipped;
+}
+
 export function useShop() {
   const { user } = useAuth();
-  const [items, setItems] = useState<ShopItemWithOwnership[]>([]);
-  const [equipped, setEquipped] = useState<Equipped>({});
-  const [loading, setLoading] = useState(true);
-  const [purchasing, setPurchasing] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const uid = user?.uid ?? null;
 
   const getToken = useCallback(async () => {
     if (!user) return null;
     return user.getIdToken();
   }, [user]);
 
-  const fetchData = useCallback(async () => {
-    const token = await getToken();
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+  const [purchasing, setPurchasing] = useState<string | null>(null);
 
-    const [itemsRes, invRes] = await Promise.all([
-      fetch('/api/shop/items', { headers }),
-      token ? fetch('/api/shop/inventory', { headers }) : Promise.resolve(null),
-    ]);
+  const { data, isLoading: loading } = useQuery<ShopData>({
+    queryKey: ['shopData', uid],
+    queryFn: async () => {
+      const token = await getToken();
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const itemsData = await itemsRes.json();
-    setItems(itemsData.items ?? []);
+      const [itemsRes, invRes] = await Promise.all([
+        fetch('/api/shop/items', { headers }),
+        token ? fetch('/api/shop/inventory', { headers }) : Promise.resolve(null),
+      ]);
 
-    if (invRes) {
-      const invData = await invRes.json();
-      setEquipped(invData.equipped ?? {});
-    }
+      const itemsData = await itemsRes.json();
+      const invData = invRes ? await invRes.json() : null;
 
-    setLoading(false);
-  }, [getToken]);
+      return {
+        items: itemsData.items ?? [],
+        equipped: invData?.equipped ?? {},
+      };
+    },
+    enabled: !!uid,
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const items = data?.items ?? [];
+  const equipped = data?.equipped ?? {};
+
+  const invalidateShop = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['shopData', uid] });
+  }, [queryClient, uid]);
 
   const purchase = useCallback(async (itemId: string) => {
     const token = await getToken();
@@ -56,17 +68,17 @@ export function useShop() {
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ itemId }),
       });
-      const data = await res.json();
+      const result = await res.json();
 
-      if (data.success) {
-        await fetchData();
-      }
+      if (result.success) invalidateShop();
 
-      return data;
+      return result;
+    } catch {
+      return { success: false };
     } finally {
       setPurchasing(null);
     }
-  }, [getToken, fetchData]);
+  }, [getToken, invalidateShop]);
 
   const equip = useCallback(async (itemId: string) => {
     const token = await getToken();
@@ -78,8 +90,8 @@ export function useShop() {
       body: JSON.stringify({ itemId, action: 'equip' }),
     });
 
-    await fetchData();
-  }, [getToken, fetchData]);
+    invalidateShop();
+  }, [getToken, invalidateShop]);
 
   const unequip = useCallback(async (itemId: string) => {
     const token = await getToken();
@@ -91,8 +103,8 @@ export function useShop() {
       body: JSON.stringify({ itemId, action: 'unequip' }),
     });
 
-    await fetchData();
-  }, [getToken, fetchData]);
+    invalidateShop();
+  }, [getToken, invalidateShop]);
 
   return { items, equipped, loading, purchasing, purchase, equip, unequip };
 }

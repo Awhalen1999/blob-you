@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { X, Loader2, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import TransactionGraph from "./TransactionGraph";
 import type { StkTransaction } from "@/lib/stackcoin";
 
@@ -17,21 +18,19 @@ export default function StackCoinPopup({
   currentBalance,
   onClose,
 }: StackCoinPopupProps) {
-  const [transactions, setTransactions] = useState<StkTransaction[]>([]);
-  const [userId, setUserId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
   const backdropRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    fetch(`/api/stackcoin/transactions?discord_id=${discordId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setTransactions(data.transactions ?? []);
-        setUserId(data.userId ?? null);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [discordId]);
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["transactions", discordId],
+    queryFn: () =>
+      fetch(`/api/stackcoin/transactions?discord_id=${discordId}`).then((r) =>
+        r.json(),
+      ),
+    staleTime: 60_000,
+  });
+
+  const transactions: StkTransaction[] = data?.transactions ?? [];
+  const userId: number | null = data?.userId ?? null;
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {

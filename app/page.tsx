@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { LogOut, Loader2, Copy, Check } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { auth } from "@/lib/firebase";
@@ -86,7 +87,7 @@ export default function Home() {
   const [displayName, setDisplayName] = useState(
     user?.displayName || user?.email?.split("@")[0] || "Player",
   );
-  const [stkBalance, setStkBalance] = useState<number | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!discordId || !user) return;
@@ -98,29 +99,32 @@ export default function Home() {
         if (username) setDisplayName(username);
       })
       .catch(() => {});
-    // Get STK balance
-    fetch(`/api/stackcoin/balance?discord_id=${discordId}`)
-      .then((r) => r.json())
-      .then(({ balance }) => {
-        if (balance !== null) {
-          setStkBalance(balance);
-          posthog.people.set({ has_stk_balance: balance > 0 });
-        }
-      })
-      .catch(() => {});
   }, [user, discordId]);
 
-  // Re-fetch balance after wager payout or dispute so the displayed balance is current
+  const { data: balanceData } = useQuery({
+    queryKey: ["stkBalance", discordId],
+    queryFn: () =>
+      fetch(`/api/stackcoin/balance?discord_id=${discordId}`).then((r) =>
+        r.json(),
+      ),
+    enabled: !!discordId,
+    staleTime: 30_000,
+  });
+
+  const stkBalance: number | null = balanceData?.balance ?? null;
+
+  useEffect(() => {
+    if (stkBalance !== null) {
+      posthog.people.set({ has_stk_balance: stkBalance > 0 });
+    }
+  }, [stkBalance]);
+
+  // Invalidate balance after wager payout or dispute so the displayed balance is current
   useEffect(() => {
     if (!discordId || (!partyState.wagerPayout && !partyState.wagerDisputed))
       return;
-    fetch(`/api/stackcoin/balance?discord_id=${discordId}`)
-      .then((r) => r.json())
-      .then(({ balance }) => {
-        if (balance !== null) setStkBalance(balance);
-      })
-      .catch(() => {});
-  }, [discordId, partyState.wagerPayout, partyState.wagerDisputed]);
+    queryClient.invalidateQueries({ queryKey: ["stkBalance", discordId] });
+  }, [discordId, partyState.wagerPayout, partyState.wagerDisputed, queryClient]);
 
   const isDiscordWithStk = !!discordId && stkBalance !== null;
 
