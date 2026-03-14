@@ -42,7 +42,7 @@ export default function ShopItemCard({
             size="sm"
             variant="primary"
             loading={isPurchasing}
-            disabled={!!purchasing}
+            disabled={isPurchasing}
             onClick={() => onBuy(item.id)}
           >
             Buy

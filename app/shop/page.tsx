@@ -26,7 +26,7 @@ export default function ShopPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="tile-bg">
+      <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-white/40" />
       </div>
     );
@@ -34,7 +34,7 @@ export default function ShopPage() {
 
   if (!user || !user.uid.startsWith('discord:')) {
     return (
-      <div className="tile-bg">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="transparent-bg rounded-sm border border-white/20 p-lg text-center max-w-sm mx-4">
           <p className="text-white font-bold mb-md">Discord login required</p>
           <p className="text-white/40 text-sm mb-md">Sign in with Discord to access the shop.</p>
@@ -49,7 +49,7 @@ export default function ShopPage() {
   const filtered = filter === 'all' ? items : items.filter(i => i.category === filter);
 
   return (
-    <div className="tile-bg !items-start !justify-start">
+    <div className="min-h-screen">
       <div className="w-full max-w-2xl mx-auto p-lg">
         {/* Header */}
         <div className="flex items-center gap-md mb-lg">
