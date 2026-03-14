@@ -756,19 +756,6 @@ export default function Home() {
           >
             Generate Match Code
           </Button>
-          {isDiscordWithStk && (
-            <Button
-              onClick={() => setMenuView("gamba")}
-              variant="primary"
-              size="lg"
-              fullWidth
-              icon={
-                <Image src="/stack-coin.png" alt="STK" width={18} height={18} />
-              }
-            >
-              Gamba
-            </Button>
-          )}
           <Button
             onClick={() => setMenuView("join")}
             variant="primary"
@@ -785,6 +772,19 @@ export default function Home() {
           >
             Offline Match
           </Button>
+          {isDiscordWithStk && (
+            <Button
+              onClick={() => setMenuView("gamba")}
+              variant="primary"
+              size="lg"
+              fullWidth
+              icon={
+                <Image src="/stack-coin.png" alt="STK" width={18} height={18} />
+              }
+            >
+              Gamba
+            </Button>
+          )}
           {isDiscordWithStk && (
             <Link href="/shop">
               <Button
