@@ -125,9 +125,9 @@ export default function StackCoinPopup({
                           className={`shrink-0 rounded-full p-1 ${isSent ? "bg-red-500/20" : "bg-green-500/20"}`}
                         >
                           {isSent ? (
-                            <ArrowUpRight className="w-3.5 h-3.5 text-red-400" />
+                            <ArrowDownLeft className="w-3.5 h-3.5 text-red-400" />
                           ) : (
-                            <ArrowDownLeft className="w-3.5 h-3.5 text-green-400" />
+                            <ArrowUpRight className="w-3.5 h-3.5 text-green-400" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
