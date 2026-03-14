@@ -74,7 +74,7 @@ export default class BlobRoom implements Party.Server {
   private reportTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // StackCoin SDK state
-  private stkClient: InstanceType<typeof Client> | null = null;
+  private stkClient: Client | null = null;
   private hostRequestId: number | null = null;
   private guestRequestId: number | null = null;
   private hostStkUserId: number | null = null;
@@ -85,7 +85,7 @@ export default class BlobRoom implements Party.Server {
     this.state = createInitialState();
   }
 
-  private getStkClient(): InstanceType<typeof Client> {
+  private getStkClient(): Client {
     if (!this.stkClient) {
       const token = process.env.STACKCOIN_BOT_TOKEN as string | undefined;
       if (!token) throw new Error('STACKCOIN_BOT_TOKEN not set');
@@ -165,7 +165,7 @@ export default class BlobRoom implements Party.Server {
             event: 'report_timeout',
             properties: { amount: this.state.wagerAmount },
           });
-          void this.issueRefundAndReset();
+          void this.issueRefundAndReset('report_timeout');
         }, 180_000);
       }
     }
@@ -186,13 +186,14 @@ export default class BlobRoom implements Party.Server {
     this.broadcast({ type: 'player_left', role });
 
     if (this.state.wagerStatus !== 'none' && this.state.wagerStatus !== 'complete') {
-      await this.issueRefundAndReset();
+      await this.issueRefundAndReset('disconnect');
+    } else {
+      this.resetWager(false);
     }
 
     this.state = createInitialState();
     this.hostDiscordId = null;
     this.guestDiscordId = null;
-    this.resetWager(false);
     this.log('room_closed', { reason: `${role}_left` });
   }
 
@@ -468,7 +469,7 @@ export default class BlobRoom implements Party.Server {
               guestAccepted: this.guestAccepted,
             },
           });
-          void this.issueRefundAndReset();
+          void this.issueRefundAndReset('payment_timeout');
         }
       }, PAYMENT_TIMEOUT_MS);
     } catch (err) {
@@ -509,6 +510,22 @@ export default class BlobRoom implements Party.Server {
         client.getRequest(this.guestRequestId),
       ]);
 
+      const hostDenied = hostReq.status === 'denied';
+      const guestDenied = guestReq.status === 'denied';
+
+      if (hostDenied || guestDenied) {
+        this.log('stk_request_denied', {
+          hostStatus: hostReq.status,
+          guestStatus: guestReq.status,
+        });
+        this.broadcastAll({
+          type: 'error',
+          message: 'Wager cancelled: payment request was denied.',
+        });
+        void this.issueRefundAndReset('request_denied');
+        return;
+      }
+
       if (hostReq.status === 'accepted' && !this.hostAccepted) {
         this.hostAccepted = true;
         this.log('stk_request_accepted', { role: 'host', requestId: this.hostRequestId });
@@ -542,13 +559,13 @@ export default class BlobRoom implements Party.Server {
 
   // ===== Payout & Refund (direct SDK calls) =====
 
-  private async issueRefundAndReset() {
+  private async issueRefundAndReset(reason: string) {
     if (this.state.wagerStatus === 'none' || this.state.wagerStatus === 'complete') return;
 
     const hostPaid = this.hostAccepted;
     const guestPaid = this.guestAccepted;
 
-    this.log('refund_check', { hostPaid, guestPaid, amount: this.state.wagerAmount });
+    this.log('refund_check', { reason, hostPaid, guestPaid, amount: this.state.wagerAmount });
 
     if (hostPaid || guestPaid) {
       try {
@@ -564,13 +581,13 @@ export default class BlobRoom implements Party.Server {
         }
 
         await Promise.all(tasks);
-        this.log('refund_issued', { hostPaid, guestPaid });
+        this.log('refund_issued', { reason, hostPaid, guestPaid });
 
         getPostHog()?.capture({
           distinctId: this.room.id,
           event: 'wager_refund_issued',
           properties: {
-            reason: 'disconnect',
+            reason,
             host_paid: hostPaid,
             guest_paid: guestPaid,
             amount: this.state.wagerAmount,
@@ -626,7 +643,7 @@ export default class BlobRoom implements Party.Server {
         },
       });
 
-      void this.issueRefundAndReset();
+      void this.issueRefundAndReset('dispute');
     }
   }
 
@@ -661,7 +678,7 @@ export default class BlobRoom implements Party.Server {
       });
     } catch (err) {
       this.log('wager_payout_error', { err: String(err) });
-      void this.issueRefundAndReset();
+      void this.issueRefundAndReset('payout_failed');
     }
   }
 
