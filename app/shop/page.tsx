@@ -8,6 +8,7 @@ import { useShop } from '@/hooks/useShop';
 import type { ItemCategory } from '@/lib/shop/items';
 import ShopItemCard from '@/components/shop/ShopItemCard';
 import PurchaseModal from '@/components/shop/PurchaseModal';
+import Button from '@/components/ui/Button';
 import type { ShopItemWithOwnership } from '@/hooks/useShop';
 
 const CATEGORIES: { label: string; value: ItemCategory | 'all' }[] = [
@@ -49,32 +50,29 @@ export default function ShopPage() {
   const filtered = filter === 'all' ? items : items.filter(i => i.category === filter);
 
   return (
-    <div className="min-h-screen">
-      <div className="w-full max-w-2xl mx-auto p-lg">
-        {/* Header */}
-        <div className="flex items-center gap-md mb-lg">
-          <Link href="/" className="text-white/40 hover:text-white transition-colors">
-            <ArrowLeft className="w-6 h-6" />
-          </Link>
-          <h1 className="text-white font-bold text-2xl uppercase tracking-wide">Shop</h1>
-        </div>
+    <div className="relative min-h-screen w-full">
+      <Link href="/" className="absolute top-4 left-4 z-10 max-[768px]:top-6">
+        <Button
+          variant="secondary"
+          size="md"
+          icon={<ArrowLeft className="w-4 h-4" />}
+        >
+          Main Menu
+        </Button>
+      </Link>
 
-        {/* Category tabs */}
-        <div className="flex gap-xs mb-lg overflow-x-auto scrollbar-hide">
+      <div className="w-full max-w-2xl mx-auto p-lg pt-16">
+        {/* Category filters - first, using shared Button convention */}
+        <div className="flex flex-wrap gap-2 mb-lg">
           {CATEGORIES.map(cat => (
-            <button
+            <Button
               key={cat.value}
+              variant={filter === cat.value ? 'primary' : 'secondary'}
+              size="sm"
               onClick={() => setFilter(cat.value)}
-              className={`
-                px-4 py-2 rounded-sm text-xs font-bold uppercase tracking-wide transition-colors shrink-0
-                ${filter === cat.value
-                  ? 'bg-white/20 text-white border border-white/30'
-                  : 'text-white/40 border border-white/10 hover:text-white/60'
-                }
-              `}
             >
               {cat.label}
-            </button>
+            </Button>
           ))}
         </div>
 
