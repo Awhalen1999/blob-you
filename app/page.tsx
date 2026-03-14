@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { LogOut, Loader2, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -784,6 +785,20 @@ export default function Home() {
           >
             Offline Match
           </Button>
+          {isDiscordWithStk && (
+            <Link href="/shop">
+              <Button
+                variant="success"
+                size="lg"
+                fullWidth
+                icon={
+                  <Image src="/stack-coin.png" alt="STK" width={18} height={18} />
+                }
+              >
+                Shop
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </div>
